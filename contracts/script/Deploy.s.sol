@@ -6,6 +6,7 @@ import { Script, console2 } from "forge-std/Script.sol";
 import { MockERC20 } from "../src/mocks/MockERC20.sol";
 import { FlightRegistry } from "../src/registry/FlightRegistry.sol";
 import { FlightOracleConsumer } from "../src/oracle/FlightOracleConsumer.sol";
+import { FlightOracleReceiver } from "../src/oracle/FlightOracleReceiver.sol";
 import { MockFeeder } from "../src/oracle/MockFeeder.sol";
 import { MarketFactory } from "../src/market/MarketFactory.sol";
 
@@ -20,7 +21,9 @@ contract Deploy is Script {
         FlightRegistry registry = new FlightRegistry(owner);
         FlightOracleConsumer oracle = new FlightOracleConsumer(owner, owner);
         MockFeeder feeder = new MockFeeder(address(oracle));
-        oracle.setReporter(address(feeder));
+        FlightOracleReceiver receiver = new FlightOracleReceiver(owner, address(oracle), owner);
+        oracle.setReporter(address(feeder), true);
+        oracle.setReporter(address(receiver), true);
 
         MarketFactory factory = new MarketFactory(
             owner,
@@ -41,6 +44,7 @@ contract Deploy is Script {
         console2.log("collateral", address(collateral));
         console2.log("registry", address(registry));
         console2.log("oracle", address(oracle));
+        console2.log("receiver", address(receiver));
         console2.log("feeder", address(feeder));
         console2.log("factory", address(factory));
         console2.log("market", market);

@@ -8,27 +8,26 @@ import { Resolution } from "../types/FlightTypes.sol";
 import { Unauthorized, ZeroAddress } from "../lib/Errors.sol";
 
 contract FlightOracleConsumer is IFlightOracle, Ownable {
-    address public reporter;
-
+    mapping(address => bool) public reporters;
     mapping(bytes32 => Resolution) private _resolutions;
 
-    event ReporterUpdated(address indexed reporter);
+    event ReporterUpdated(address indexed reporter, bool allowed);
     event ResolutionPosted(bytes32 indexed flightId, int32 delayMinutes, bool finalized);
 
     constructor(address owner_, address reporter_) Ownable(owner_) {
         if (owner_ == address(0) || reporter_ == address(0)) revert ZeroAddress();
-        reporter = reporter_;
-        emit ReporterUpdated(reporter_);
+        reporters[reporter_] = true;
+        emit ReporterUpdated(reporter_, true);
     }
 
-    function setReporter(address reporter_) external onlyOwner {
-        if (reporter_ == address(0)) revert ZeroAddress();
-        reporter = reporter_;
-        emit ReporterUpdated(reporter_);
+    function setReporter(address reporter, bool allowed) external onlyOwner {
+        if (reporter == address(0)) revert ZeroAddress();
+        reporters[reporter] = allowed;
+        emit ReporterUpdated(reporter, allowed);
     }
 
     function postResolution(bytes32 flightId, int32 delayMinutes, bool finalized) external {
-        if (msg.sender != reporter) revert Unauthorized();
+        if (!reporters[msg.sender]) revert Unauthorized();
         _resolutions[flightId] = Resolution(delayMinutes, finalized);
         emit ResolutionPosted(flightId, delayMinutes, finalized);
     }

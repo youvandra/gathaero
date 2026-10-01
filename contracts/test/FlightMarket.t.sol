@@ -41,7 +41,7 @@ contract FlightMarketTest is Test {
         registry = new FlightRegistry(address(this));
         oracle = new FlightOracleConsumer(address(this), address(this));
         feeder = new MockFeeder(address(oracle));
-        oracle.setReporter(address(feeder));
+        oracle.setReporter(address(feeder), true);
 
         factory = new MarketFactory(
             address(this),
