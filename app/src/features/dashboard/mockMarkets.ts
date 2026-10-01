@@ -9,6 +9,7 @@ export type FlightMarket = {
   code: string;
   route: string;
   date: string;
+  isoDate: string;
   scheduledArrival: string;
   status: MarketStatus;
   delayProbability: number;
@@ -28,6 +29,7 @@ export const MOCK_MARKETS: FlightMarket[] = [
     code: "SQ956",
     route: "SIN → CGK",
     date: "15 Nov",
+    isoDate: "2026-10-01",
     scheduledArrival: "07:44",
     status: "open",
     delayProbability: 0.062,
@@ -48,6 +50,7 @@ export const MOCK_MARKETS: FlightMarket[] = [
     code: "AK380",
     route: "SIN → KUL",
     date: "16 Nov",
+    isoDate: "2026-11-16",
     scheduledArrival: "09:20",
     status: "open",
     delayProbability: 0.091,
@@ -68,6 +71,7 @@ export const MOCK_MARKETS: FlightMarket[] = [
     code: "TR286",
     route: "SIN → CGK",
     date: "15 Nov",
+    isoDate: "2026-11-15",
     scheduledArrival: "14:05",
     status: "delayed",
     delayProbability: 0.62,
@@ -88,6 +92,7 @@ export const MOCK_MARKETS: FlightMarket[] = [
     code: "CZ352",
     route: "SIN → CAN",
     date: "17 Nov",
+    isoDate: "2026-11-17",
     scheduledArrival: "12:20",
     status: "open",
     delayProbability: 0.044,
@@ -108,6 +113,7 @@ export const MOCK_MARKETS: FlightMarket[] = [
     code: "QZ521",
     route: "SIN → DPS",
     date: "19 Nov",
+    isoDate: "2026-11-19",
     scheduledArrival: "16:40",
     status: "open",
     delayProbability: 0.114,
@@ -128,6 +134,7 @@ export const MOCK_MARKETS: FlightMarket[] = [
     code: "GA410",
     route: "CGK → DPS",
     date: "20 Nov",
+    isoDate: "2026-11-20",
     scheduledArrival: "18:15",
     status: "resolved",
     delayProbability: 0.036,

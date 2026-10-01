@@ -16,10 +16,9 @@ import { parseUnits } from "viem";
 import { useAccount } from "wagmi";
 
 import { ProbabilityPanel } from "../../features/dashboard/ProbabilityPanel";
-import { StrikeLadder } from "../../features/dashboard/StrikeLadder";
+import { PredictionStrikes } from "../../features/dashboard/PredictionStrikes";
 import { DEFAULT_MARKET_CODE, findMarket } from "../../features/dashboard/mockMarkets";
 import {
-  DEFAULT_FLIGHT,
   flightIdOf,
   isConfigured,
   useBuyProtection,
@@ -59,7 +58,7 @@ export function MarketDetailPage() {
   const [amount, setAmount] = useState("6.20");
 
   const onChain = market.code === DEFAULT_MARKET_CODE;
-  const flightId = flightIdOf(DEFAULT_FLIGHT.number, DEFAULT_FLIGHT.date);
+  const flightId = flightIdOf(market.code, market.isoDate);
   const marketAddress = useMarketAddress(flightId);
   const state = useMarketState(marketAddress);
   const { buy, isPending } = useBuyProtection(marketAddress);
@@ -155,7 +154,11 @@ export function MarketDetailPage() {
                 format={(value) => `${value.toFixed(0)}%`}
                 label="Arrival distribution"
               />
-              <StrikeLadder strikes={market.strikes} />
+              <PredictionStrikes
+                flightId={flightId}
+                date={market.isoDate}
+                strikes={market.strikes}
+              />
               <p style={{ margin: 0, color: "var(--cordon-copy-dim)", fontSize: "var(--cordon-size-caption)" }}>
                 Trade the actual landing time against a strike. Positions stay open and
                 tradeable until the wheels touch down.
