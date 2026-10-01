@@ -15,7 +15,7 @@ const SECTIONS = [
   },
   {
     title: "Network",
-    body: "Deployed on Arbitrum. Testnet chain id 421614, mainnet chain id 143.",
+    body: "Deployed on Arbitrum. Sepolia chain id 421614, One chain id 42161.",
   },
 ];
 

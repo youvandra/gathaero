@@ -30,7 +30,7 @@ export function loadConfig(): FeederConfig {
   const key = process.env.RAPIDAPI_KEY;
 
   return {
-    rpcUrl: process.env.RPC_URL ?? "https://rpc.testnet.arbitrum.xyz",
+    rpcUrl: process.env.RPC_URL ?? "https://sepolia-rollup.arbitrum.io/rpc",
     privateKey: hexEnv("FEEDER_PRIVATE_KEY"),
     mockFeederAddress: hexEnv("MOCK_FEEDER_ADDRESS"),
     flightNumber: process.env.FLIGHT_NUMBER ?? "SQ956",

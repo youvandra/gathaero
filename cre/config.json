@@ -2,6 +2,6 @@
   "flightNumber": "SQ956",
   "flightDate": "2026-10-01",
   "aerodataboxHost": "aerodatabox.p.rapidapi.com",
-  "chainSelector": "ARBITRUM_TESTNET_CHAIN_SELECTOR",
+  "chainSelector": "ARBITRUM_SEPOLIA_CHAIN_SELECTOR",
   "receiverAddress": "0x0000000000000000000000000000000000000000"
 }

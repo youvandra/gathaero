@@ -11,7 +11,7 @@ cron (*/30) -> http GET AeroDataBox -> encode (bytes32 flightId, int32 delay, bo
 ```
 
 ## Requirements
-- CRE CLI `>= v1.30.0` (Arbitrum Testnet support).
+- CRE CLI `>= v1.0.0` (Arbitrum Sepolia support).
 - Deploy access enabled for the organization.
 - `RAPIDAPI_KEY` secret (AeroDataBox key via RapidAPI).
 
@@ -19,13 +19,13 @@ cron (*/30) -> http GET AeroDataBox -> encode (bytes32 flightId, int32 delay, bo
 ```
 npm install
 cre login
-cre workflow supported-chains          # confirm Arbitrum Testnet + get chain selector
+cre workflow supported-chains          # confirm Arbitrum Sepolia + get chain selector
 cre secrets create RAPIDAPI_KEY
 cre workflow simulate
 cre workflow deploy
 ```
 
-Fill `config.json` with the Arbitrum Testnet chain selector and the deployed
+Fill `config.json` with the Arbitrum Sepolia chain selector and the deployed
 `FlightOracleReceiver` address. Set `receiverAddress` as a reporter on
 `FlightOracleConsumer` (`setReporter(receiver, true)`).
 

@@ -16,3 +16,7 @@ bracket_spacing = true
 [profile.ci]
 fuzz = { runs = 512 }
 invariant = { runs = 256 }
+
+[rpc_endpoints]
+arbitrum = "https://arb1.arbitrum.io/rpc"
+arbitrum_sepolia = "https://sepolia-rollup.arbitrum.io/rpc"

@@ -1,7 +1,7 @@
 # Gathaero — Agent & Contributor Guide
 
 Flight-risk market: prediction + delay protection, settled on-chain.
-Target: Arbitrum Metropolis (Track 02 — Consumer Products & Payments).
+Target: Arbitrum Open House Singapore buildathon.
 
 ## Non-negotiables
 - **Scalable by default.** Every module must grow without rewrites.
@@ -15,7 +15,7 @@ Target: Arbitrum Metropolis (Track 02 — Consumer Products & Payments).
 | Layer | Choice |
 |---|---|
 | Contracts | Solidity + Foundry (`>=1.8.0`) |
-| Chain | Arbitrum Testnet (421614) / Mainnet (143) |
+| Chain | Arbitrum Sepolia (421614) / One (42161) |
 | Frontend | Vite + React + TypeScript + PWA |
 | Web3 client | viem (`>=2.40.0`) + wagmi |
 | Oracle | Chainlink CRE (TypeScript) |

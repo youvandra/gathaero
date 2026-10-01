@@ -1,6 +1,5 @@
 import {
   createWalletClient,
-  defineChain,
   http,
   keccak256,
   parseAbi,
@@ -8,15 +7,9 @@ import {
   type Hex,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import { arbitrumSepolia } from "viem/chains";
 
 import type { FeederConfig } from "./config.js";
-
-export const arbitrumTestnet = defineChain({
-  id: 421614,
-  name: "Arbitrum Testnet",
-  nativeCurrency: { name: "Arbitrum", symbol: "ETH", decimals: 18 },
-  rpcUrls: { default: { http: ["https://rpc.testnet.arbitrum.xyz"] } },
-});
 
 const MOCK_FEEDER_ABI = parseAbi([
   "function feed(bytes32 flightId, int32 delayMinutes, bool finalized)",
@@ -35,7 +28,7 @@ export async function postResolution(
   const account = privateKeyToAccount(config.privateKey);
   const wallet = createWalletClient({
     account,
-    chain: arbitrumTestnet,
+    chain: arbitrumSepolia,
     transport: http(config.rpcUrl),
   });
 

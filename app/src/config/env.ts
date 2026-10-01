@@ -9,7 +9,7 @@ const readString = (value: unknown, fallback: string): string =>
   typeof value === "string" && value.length > 0 ? value : fallback;
 
 export const env = {
-  rpcUrl: readString(import.meta.env.VITE_RPC_URL, "https://rpc.testnet.arbitrum.xyz"),
+  rpcUrl: readString(import.meta.env.VITE_RPC_URL, "https://sepolia-rollup.arbitrum.io/rpc"),
   walletConnectProjectId: readString(import.meta.env.VITE_WALLETCONNECT_PROJECT_ID, ""),
   contracts: {
     marketFactory: readAddress(import.meta.env.VITE_MARKET_FACTORY, ZERO_ADDRESS),

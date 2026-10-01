@@ -1,24 +1,24 @@
-# Airtime — Spec & Catatan
+# Gathaero — Spec & Catatan
 
 > Event-driven derivatives market onchain: posisi atas risiko delay penerbangan.
 > Hedger (traveler) dapat proteksi; trader dapat pasar. Settlement instan.
 
 ## 0. Ringkasan
-- **Hackathon:** Arbitrum Metropolis (1 Sep – 13 Okt), deadline build 13 Okt.
-- **Track:** 02 — Consumer Products & Payments.
-- **Bounty target:** Agora Mobile Trading ($10k) + Chainlink CRE ($3k, all-tracks).
-- **Framing:** app konsumer, mobile, blockchain invisible, settlement instan.
-- **Bentuk:** mobile-first PWA (bukan web desktop, bukan native dari nol).
+- **Hackathon:** Arbitrum Open House Singapore (online buildathon), deadline build 13 Okt.
+- **Chain:** Arbitrum Sepolia (421614) / Arbitrum One (42161).
+- **Framing:** app konsumer, responsive, blockchain invisible, settlement instan.
+- **Bentuk:** PWA (web, installable).
+- **Bounty target:** Paxos (stablecoin) · QuickNode (RPC) · Dune (dashboard) · ZeroDev (gasless) · Pendle (yield). Stretch: Stylus (Rust AMM).
 
 ## 1. Aset
 | Aset | Bentuk | Ticker | Untuk |
 |---|---|---|---|
-| Settlement | USDC | `USDC` | bayar / payout |
-| Posisi | ERC-1155 per flight | `TR286-15NOV-DELAY` / `-ONTIME` | trade & hedge |
+| Settlement | ERC-20 stablecoin | `USDC` | bayar / payout |
+| Posisi | ERC-1155 per flight | `SQ956-15NOV-DELAY` / `-ONTIME` | trade & hedge |
 | LP share | ERC-20 per rute | `AT-SINCGK` | setoran LP |
 | `$AIR` | roadmap | — | skip di MVP |
 
-Outcome share bayar **1 USDC** kalau menang, 0 kalau kalah.
+Outcome share bayar **1 unit stablecoin** kalau menang, 0 kalau kalah.
 Ticker posisi unik per flight (bukan token global).
 
 ## 2. Aktor
@@ -27,12 +27,12 @@ Hedger (traveler) · Trader (spekulan) · LP (underwriter) · Oracle (CRE) · Mo
 ## 3. Flow
 ```
 1. Flight didaftarkan → market 2 outcome dibuat
-2. LP deposit ke vault rute → liquidity (AMM)
+2. LP deposit ke market → liquidity (AMM)
 3. Traveler beli DELAY / trader trading
 4. Market OPEN sampai LANDING
 5. CRE cron → fetch API flight → consensus → tulis on-chain
 6. Landing → hasil final → market resolve
-7. Pemenang redeem 1 USDC/share otomatis
+7. Pemenang redeem 1 stablecoin/share otomatis
 8. LP ambil sisa premium (yield)
 ```
 
@@ -41,138 +41,86 @@ Hedger (traveler) · Trader (spekulan) · LP (underwriter) · Oracle (CRE) · Mo
 |---|---|
 | `FlightRegistry` | daftar flight (flightNo, tanggal, jadwal) |
 | `MarketFactory` | bikin market + outcome token per flight |
-| `FlightMarket` | AMM CPMM 2 outcome, buy/sell, resolve, redeem |
-| `LiquidityVault` | deposit/withdraw LP per rute, exposure |
-| `FlightOracleConsumer` | implement `IReceiver` → terima report dari CRE |
-| `MockFeeder` | fallback signer (interface sama) |
+| `FlightMarket` | AMM CPMM 2 outcome, buy, resolve, redeem, liquidity |
+| `FlightOracleConsumer` | multi-reporter, simpan resolusi |
+| `FlightOracleReceiver` | `IReceiver` → terima report dari CRE |
+| `MockFeeder` | fallback signer (demo) |
 | `OutcomeToken` | ERC-1155 (OpenZeppelin) |
+| `MockERC20` | stablecoin mock buat lokal |
 
 ## 5. Oracle
 ```
 CRE workflow (TypeScript):
   cron trigger → runtime.http.fetch(flight status API)
   → consensus DON → runtime.report(payload)
-  → evmClient.writeReport(FlightOracleConsumer @ Arbitrum Testnet)
+  → evmClient.writeReport(FlightOracleReceiver @ Arbitrum Sepolia)
 Fallback demo: MockFeeder nimpa hasil (interface sama).
 ```
-- Pastikan: CLI `v1.30.0+`, deploy access, `cre workflow supported-chains`.
+- CRE support Arbitrum sejak CLI `v1.0.0+`.
+- Pastikan: deploy access, `cre workflow supported-chains`.
 
-## 6. Frontend (Vite PWA, mobile-first)
-Layar: Cari Flight · Flight Market · My Positions · LP Vault · Feed + tombol **Simulate Storm**.
+## 6. Frontend (Vite + React + TS, responsive PWA)
+Landing + halaman publik (Markets, How it works, Docs) + app (Home, Market, Positions, Vault).
+Responsive: sidebar di desktop, bottom-nav di mobile. Video hero ala nexum + glass UI.
 
 ## 7. Tech Stack
 | Layer | Pilihan | Alasan |
 |---|---|---|
-| Kontrak | Foundry `>=1.8.0` + Solidity | standar, support resmi Arbitrum |
-| Frontend | Vite + React + TS | SPA/PWA client-side, ringan |
-| Wallet | wagmi + viem `>=2.40` | viem udah punya `arbitrum.ts` |
-| PWA | vite-plugin-pwa | installable → "app HP" |
-| Oracle | Chainlink CRE (TS) | bounty + all-tracks |
+| Kontrak | Foundry `>=1.8.0` + Solidity | standar EVM |
+| Frontend | Vite + React + TS + Tailwind | cepat, cocok UI glass |
+| Wallet | wagmi + viem | viem punya `arbitrum`/`arbitrumSepolia` |
+| PWA | vite-plugin-pwa | installable |
+| Oracle | Chainlink CRE (TS) | HTTP API → on-chain |
 | Mock feeder | Node + viem (TS) | satu bahasa, reuse |
-| Pkg manager | Bun (fallback pnpm) | cepat; Foundry independen |
-| RPC | QuickNode / Alchemy | credit gratis |
-
-**Kenapa bukan Next.js:** wallet app 100% client-side; SSR/SEO gak kepake.
-**Kenapa bukan Python:** CRE-nya TS → satu bahasa (TS) lebih hemat.
+| RPC | QuickNode | bounty + infra |
 
 ## 8. Arbitrum — Fakta Teknis
-- Testnet: Chain ID **421614**, RPC `https://rpc.testnet.arbitrum.xyz`
-- Mainnet: Chain ID **143**, RPC `https://rpc.arbitrum.xyz`
-- Foundry `>=1.8.0` (aktifkan Arbitrum execution network)
-- viem `>=2.40.0`, alloy-chains `>=0.2.20`
-- Max contract size **128kb**; EIP-7702 + precompile P256 (`0x0100`) didukung
+- Arbitrum Sepolia: Chain ID **421614**, RPC `https://sepolia-rollup.arbitrum.io/rpc`
+- Arbitrum One: Chain ID **42161**, RPC `https://arb1.arbitrum.io/rpc`
+- Gas token **ETH** (butuh faucet untuk testnet)
+- EVM-compatible penuh; `evm_version = cancun` aman
+- Explorer: Arbiscan / Sepolia Arbiscan
 
 ## 9. Struktur Repo
 ```
 /contracts   (Foundry: src, test, script)
-/app         (Vite + React + TS, wagmi/viem, PWA)
+/app         (Vite + React + TS + Tailwind, wagmi/viem, PWA)
 /cre         (Chainlink CRE workflow TS)
 /feeder      (mock feeder Node)
+/docs        (spec)
 ```
 
-## 10. Scope 12 Hari
-**Masuk:** 1 rute (SIN→CGK), market 2 outcome, AMM, vault, resolve, auto-redeem, CRE + mock, frontend 5 layar.
-**Keluar (roadmap):** passenger earn (Fly&Earn), secondary market, tranching, multi-rute, `$AIR`, Mera passkey.
-
-Timeline: D1–3 kontrak · D4–6 CRE+oracle · D7–9 frontend · D10–11 integrasi/demo · D12 polish+submit.
+## 10. Scope
+**Masuk:** 1 rute (SIN→CGK), market 2 outcome, AMM, resolve, auto-redeem, CRE + mock, landing + app.
+**Keluar (roadmap):** passenger earn (Fly&Earn), secondary market, tranching/Pendle, multi-rute, `$AIR`, Stylus AMM.
 
 ## 11. Reliability & Buildability
-| Komponen | Reliable? | Buildable 12 hari? | Risiko | Mitigasi |
-|---|---|---|---|---|
-| Foundry + Solidity @ Arbitrum | ✅ tinggi | ✅ | rendah | — |
-| Arbitrum Testnet (421614) | ✅ | ✅ | rendah | — |
-| viem/wagmi + Arbitrum | ✅ | ✅ | rendah | tambah custom chain network |
-| Vite + React + PWA | ✅ tinggi | ✅ | rendah | — |
-| ERC-1155 + AMM CPMM | ✅ | ✅ sedang | math AMM | tes unit Foundry |
-| **Chainlink CRE deploy access** | ⚠️ sedang | ⚠️ | **gate approval** | MockFeeder fallback |
-| Flight data API | ⚠️ | ✅ | auth/rate-limit/biaya | mock data buat demo |
-| Agora bounty criteria | ❓ | ❓ | spesifik sponsor | cek requirement Agora |
-| Bun | ✅ | ✅ | edge case | fallback pnpm |
-
-**Verdict:** Core (kontrak, AMM, frontend, oracle mock, redeem) **reliable & buildable**.
-Yang berisiko tinggi cuma dua: **CRE deploy access** dan **kriteria bounty Agora**.
-Desain sengaja *source-agnostic* (CRE ↔ MockFeeder) supaya risiko terkontrol.
+| Komponen | Reliable? | Risiko | Mitigasi |
+|---|---|---|---|
+| Foundry + Solidity @ Arbitrum | ✅ tinggi | rendah | — |
+| Arbitrum Sepolia | ✅ | rendah | faucet ETH |
+| viem/wagmi + Arbitrum | ✅ | rendah | built-in chain |
+| Vite + React + Tailwind + PWA | ✅ | rendah | — |
+| ERC-1155 + AMM CPMM | ✅ | math AMM | tes unit Foundry |
+| Chainlink CRE deploy access | ⚠️ | gate approval | MockFeeder fallback |
+| Flight data API | ⚠️ | auth/rate-limit | fallback mock |
 
 ## 12. Risiko Global
-1. CRE deploy-access gate → MockFeeder siap dari awal.
-2. Liquidity cold-start → seed manual + bot buat demo.
+1. CRE deploy-access gate → MockFeeder siap.
+2. Liquidity cold-start → seed manual + bot demo.
 3. Regulasi → framing "market/venue", bukan "asuransi".
-4. Track 02 lawan consumer app lain → menangkan lewat bounty + demo dramatis.
+4. Track lawannya DeFi serius → menangkan lewat bounty + demo dramatis.
 
-## 13. Data Asli (Real Flight API) — KEPUTUSAN: pakai asli
-Opsi API:
-| API | Harga | Isi | Catatan |
-|---|---|---|---|
-| OpenSky Network | Gratis | ADS-B real (posisi, `on_ground`) | OAuth2 client_id/secret; 4.000 credit/hari; **gak ada jadwal** |
-| AeroDataBox (RapidAPI) | Free tier terbatas | status by flight number + delay, jadwal vs aktual | **paling pas untuk delay** |
-| AviationStack | Free tier (100/bln) | status + delay | kuota kecil |
-| FlightAware AeroAPI | Berbayar | terlengkap | gak gratis |
-
-**Pilihan: AeroDataBox saja.**
-
-Akses (API sama, gateway beda):
-| Jalur | Free | Paid | Catatan |
-|---|---|---|---|
-| RapidAPI | Basic free forever (400 units) | $8/mo (5.000) | paling gampang, 1 req/s |
-| API.Market | Basic free 7-hari (400 units) | $7.50/mo | termurah |
-| Direct | credits via feed ADS-B | $19/mo (40.000) | bisa free credit |
-
-- **API units ≠ request.** Tier: T1=1, T2=2, T3=6 unit.
-- **Cache boleh s/d 7 hari.** Attribution wajib di plan free.
-- **Rekomendasi: RapidAPI Basic (free forever, 400 units).** Cukup buat demo.
-- **Gateway (verifikasi dari OpenAPI):**
-  | Jalur | URL | Header |
-  |---|---|---|
-  | Direct | `api.aerodatabox.com` | `X-Api-Key` |
-  | API.Market | `prod.api.market/api/v1/aedbx/aerodatabox` | `x-api-market-key` |
-  | RapidAPI | `aerodatabox.p.rapidapi.com` | `X-RapidAPI-Key` + `X-RapidAPI-Host` |
-- Endpoint: `GET /flights/number/{number}/{date}` (flight status by number).
-  - **CONFIRMED works** (RapidAPI, HTTP 200), return array flight.
-  - Field: `departure.scheduledTime/revisedTime`, `arrival.scheduledTime/revisedTime/runwayTime`, `status`, `lastUpdatedUtc`.
-  - **Delay = `arrival.revisedTime − arrival.scheduledTime`** (gak ada field delay eksplisit).
-  - Contoh asli: **SQ956 SIN→CGK** (rute kita).
-- **Status key:** Direct key valid tapi habis (402); **RapidAPI key aktif ✅**.
-- **Status key yang dites** (`23f221e3-...`): valid **Direct key**, tapi **plan habis → HTTP 402**.
-  - Buat hackathon: ambil **RapidAPI Basic (free forever, 400 units)**.
-  - API balas **402/429** dengan pesan jelas → integrasi handle → **fallback MockFeeder**.
-- CRE: simpan key di **secrets (Vault DON)**.
-
-**⚠️ Legal:** dilarang resell raw data / bikin API di depan API mereka. Oracle republish derivatif = abu-abu. Aman buat hackathon; produk nyata butuh plan **Derived Work licensing** + attribution.
-
-- Cron: jangan poll tiap menit (hemat units); poll 30–60 menit atau hanya window aktif.
-- Fallback: MockFeeder / demo mode.
-
-**Jebakan:** data asli = **gak bisa ngatur delay buat demo**. Maka:
-- **Live mode**: data asli (kredibel).
-- **Demo mode**: injeksi hasil → momen "storm".
-Keduanya nembak interface kontrak yang sama.
-
-**Teknis:**
-- CRE simpan API key via **secrets (Vault DON)**.
-- Match flight number → data harus hati-hati; pilih rute coverage bagus (SIN→CGK).
-- API down/rate-limit → **fallback wajib** (ke MockFeeder/demo mode).
+## 13. Data Asli (Real Flight API) — AeroDataBox
+- Akses via **RapidAPI** (`aerodatabox.p.rapidapi.com`), header `X-RapidAPI-Key`.
+- Endpoint: `GET /flights/number/{number}/{date}` → **CONFIRMED works**.
+- **Delay = `arrival.revisedTime − arrival.scheduledTime`** (gak ada field delay eksplisit).
+- Contoh asli: **SQ956 SIN→CGK**.
+- Free tier RapidAPI Basic (400 units) cukup buat demo; cache 7 hari; attribution wajib.
+- **⚠️ Legal:** dilarang resell raw data; oracle republish derivatif = abu-abu (aman buat hackathon).
+- **Jebakan:** data asli gak bisa ngatur delay → sediakan **demo mode** (injeksi storm).
 
 ## 14. Open Questions
-- Agora: requirement persis "Best Mobile Trading App"?
-- CRE: apakah Arbitrum Testnet di-enable untuk tenant kita? (`cre workflow supported-chains`)
-- API key AeroDataBox/OpenSky udah ada belum?
+- Track/bounty persis Arbitrum Open House (cek di HackQuest).
+- CRE: Arbitrum Sepolia di-enable untuk tenant kita?
+- API key AeroDataBox (RapidAPI) udah ada?
