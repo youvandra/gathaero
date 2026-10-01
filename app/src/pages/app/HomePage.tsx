@@ -1,74 +1,72 @@
-import { Button, Card, CardBody, CardHeader, TextField } from "cordon-ui";
+import { Button, Card, CardHeader } from "cordon-ui";
 import { useNavigate } from "react-router-dom";
 
-const TRENDING = [
-  { number: "SQ 956", route: "SIN → CGK", probability: "6.2%" },
-  { number: "AK 380", route: "SIN → KUL", probability: "9.1%" },
-  { number: "TR 286", route: "SIN → CGK", probability: "6.2%" },
-];
+import { HeroSearch } from "../../features/dashboard/HeroSearch";
+import { MarketRow } from "../../features/dashboard/MarketRow";
+import { StatTile } from "../../features/dashboard/StatTile";
+import { MOCK_MARKETS, MOCK_TOTALS } from "../../features/dashboard/mockMarkets";
 
 function CardTitle({ children }: { children: string }) {
   return (
-    <h2
-      style={{
-        margin: 0,
-        fontSize: "var(--cordon-size-title)",
-        fontWeight: "var(--cordon-weight-semibold)",
-        color: "var(--cordon-ink)",
-      }}
-    >
+    <h2 style={{ margin: 0, fontSize: "var(--cordon-size-title)", fontWeight: 600 }}>
       {children}
     </h2>
   );
 }
 
+const STATS = [
+  {
+    label: "Flights live",
+    value: MOCK_TOTALS.flightsLive.toLocaleString(),
+    delta: "+38 today",
+    up: true,
+    history: [980, 1040, 1010, 1120, 1090, 1180, 1210, 1248],
+  },
+  {
+    label: "Avg delay rate",
+    value: `${(MOCK_TOTALS.avgDelayRate * 100).toFixed(1)}%`,
+    history: [5.1, 5.4, 5.2, 5.8, 5.6, 6.0, 6.1, 6.2],
+  },
+  {
+    label: "Protected",
+    value: `$${Math.round(MOCK_TOTALS.protectedUsdc / 1000)}k`,
+    delta: "+$12k today",
+    up: true,
+  },
+  {
+    label: "24h volume",
+    value: `$${(MOCK_TOTALS.volume24h / 1000).toFixed(1)}k`,
+    delta: "+8.4%",
+    up: true,
+  },
+];
+
 export function HomePage() {
   const navigate = useNavigate();
+  const openMarket = () => navigate("/app/market");
 
   return (
     <>
-      <Card>
-        <CardHeader>
-          <CardTitle>Find a flight</CardTitle>
-        </CardHeader>
-        <CardBody>
-          <div className="flex flex-col gap-3">
-            <TextField placeholder="Flight number, e.g. SQ956" />
-            <TextField type="date" />
-            <Button variant="primary" block onClick={() => navigate("/app/market")}>
-              Search
-            </Button>
-          </div>
-        </CardBody>
-      </Card>
+      <HeroSearch onSearch={openMarket} />
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {STATS.map((stat) => (
+          <StatTile key={stat.label} {...stat} />
+        ))}
+      </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Trending</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>Live markets</CardTitle>
+            <Button variant="ghost" size="sm" iconEnd="arrow-right" onClick={openMarket}>
+              View all
+            </Button>
+          </div>
         </CardHeader>
-        <CardBody>
-          <ul className="flex flex-col">
-            {TRENDING.map((flight) => (
-              <li
-                key={flight.number}
-                className="flex items-center justify-between border-b py-3 last:border-b-0"
-                style={{ borderColor: "var(--cordon-hairline-soft)" }}
-              >
-                <div>
-                  <div className="font-semibold" style={{ color: "var(--cordon-ink)" }}>
-                    {flight.number}
-                  </div>
-                  <div className="text-[13px]" style={{ color: "var(--cordon-copy-dim)" }}>
-                    {flight.route}
-                  </div>
-                </div>
-                <div className="font-semibold" style={{ color: "var(--cordon-accent)" }}>
-                  {flight.probability}
-                </div>
-              </li>
-            ))}
-          </ul>
-        </CardBody>
+        {MOCK_MARKETS.map((market) => (
+          <MarketRow key={market.code} market={market} onSelect={openMarket} />
+        ))}
       </Card>
     </>
   );

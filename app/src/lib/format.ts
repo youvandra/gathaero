@@ -16,6 +16,14 @@ export function formatPercent(wad: bigint, fractionDigits = 1): string {
   return `${(Number(wad) / 1e16).toFixed(fractionDigits)}%`;
 }
 
+export function percentNumber(wad: bigint, fractionDigits = 1): string {
+  return (Number(wad) / 1e16).toFixed(fractionDigits);
+}
+
+export function toWad(percent: number): bigint {
+  return BigInt(Math.round(percent * 1e18));
+}
+
 export function shortenAddress(address: string, size = 4): string {
   return `${address.slice(0, 2 + size)}…${address.slice(-size)}`;
 }
