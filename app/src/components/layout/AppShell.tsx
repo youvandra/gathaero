@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { NavLink, Outlet } from "react-router-dom";
+import { CordonProvider } from "cordon-ui";
 
 import { WalletButton } from "../../features/wallet/WalletButton";
 
@@ -12,15 +13,15 @@ const APP_NAV = [
 
 function Brand() {
   return (
-    <span className="inline-flex items-center gap-2 font-semibold text-white">
-      <span className="text-sky-400">✈</span> gathaero
+    <span className="inline-flex items-center gap-2 font-semibold text-[var(--cordon-ink)]">
+      <span className="text-[var(--cordon-accent)]">✈</span> gathaero
     </span>
   );
 }
 
 function TopBar() {
   return (
-    <header className="sticky top-0 z-20 flex items-center justify-between gap-4 border-b border-white/10 bg-black/40 px-5 py-4 backdrop-blur-xl sm:px-7">
+    <header className="sticky top-0 z-20 flex items-center justify-between gap-4 border-b border-[var(--cordon-hairline)] bg-[var(--cordon-paper)]/85 px-5 py-4 backdrop-blur-xl sm:px-7">
       <span className="md:hidden">
         <Brand />
       </span>
@@ -41,8 +42,10 @@ function SideNav() {
             to={item.to}
             end={item.end}
             className={({ isActive }) =>
-              `flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition ${
-                isActive ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5 hover:text-white"
+              `flex items-center gap-3 rounded-[var(--cordon-radius-3)] px-3.5 py-2.5 text-sm transition ${
+                isActive
+                  ? "bg-[var(--cordon-accent-quiet)] font-semibold text-[var(--cordon-accent)]"
+                  : "text-[var(--cordon-copy)] hover:bg-black/[0.04] hover:text-[var(--cordon-ink)]"
               }`
             }
           >
@@ -51,7 +54,10 @@ function SideNav() {
           </NavLink>
         ))}
       </div>
-      <NavLink to="/" className="mt-auto text-[13px] text-white/40 transition-colors hover:text-white">
+      <NavLink
+        to="/"
+        className="mt-auto text-[13px] text-[var(--cordon-copy-dim)] transition-colors hover:text-[var(--cordon-ink)]"
+      >
         ← Back to site
       </NavLink>
     </nav>
@@ -60,7 +66,7 @@ function SideNav() {
 
 function BottomNav() {
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-20 flex justify-around border-t border-white/10 bg-black/60 px-2 pb-3 pt-2 backdrop-blur-xl md:hidden">
+    <nav className="fixed inset-x-0 bottom-0 z-20 flex justify-around border-t border-[var(--cordon-hairline)] bg-[var(--cordon-paper)]/95 px-2 pb-3 pt-2 backdrop-blur-xl md:hidden">
       {APP_NAV.map((item) => (
         <NavLink
           key={item.to}
@@ -68,7 +74,7 @@ function BottomNav() {
           end={item.end}
           className={({ isActive }) =>
             `flex flex-1 flex-col items-center gap-1 py-1.5 text-[11px] ${
-              isActive ? "text-white" : "text-white/50"
+              isActive ? "text-[var(--cordon-accent)]" : "text-[var(--cordon-copy-dim)]"
             }`
           }
         >
@@ -82,14 +88,14 @@ function BottomNav() {
 
 export function AppShell({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen bg-[#05060a]">
+    <div className="min-h-screen bg-[var(--cordon-paper)] text-[var(--cordon-ink)]">
       <div className="md:grid md:min-h-screen md:grid-cols-[264px_1fr]">
-        <aside className="sticky top-0 hidden h-screen border-r border-white/10 bg-white/[0.02] p-6 md:block">
+        <aside className="sticky top-0 hidden h-screen border-r border-[var(--cordon-hairline)] bg-[var(--cordon-paper-raised)] p-6 md:block">
           <SideNav />
         </aside>
         <div className="flex min-w-0 flex-col">
           <TopBar />
-          <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 p-5 pb-28 md:p-7 md:pb-7">
+          <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-5 p-5 pb-28 md:p-7 md:pb-7">
             {children}
           </main>
         </div>
@@ -101,8 +107,10 @@ export function AppShell({ children }: { children: ReactNode }) {
 
 export function AppLayout() {
   return (
-    <AppShell>
-      <Outlet />
-    </AppShell>
+    <CordonProvider glaze="rose" className="min-h-screen">
+      <AppShell>
+        <Outlet />
+      </AppShell>
+    </CordonProvider>
   );
 }

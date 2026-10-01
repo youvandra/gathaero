@@ -1,9 +1,8 @@
+import { Button, Card, CardBody, CardHeader, TextField } from "cordon-ui";
 import { useState } from "react";
 import { parseUnits } from "viem";
 import { useAccount } from "wagmi";
 
-import { Button } from "../../components/ui/Button";
-import { Card } from "../../components/ui/Card";
 import {
   DEFAULT_FLIGHT,
   flightIdOf,
@@ -12,7 +11,23 @@ import {
   useMarketState,
 } from "../../features/market/useFlightMarket";
 import { formatUsdc } from "../../lib/format";
-import { INPUT } from "../../lib/theme";
+
+function CardTitle({ children }: { children: string }) {
+  return (
+    <h2 style={{ margin: 0, fontSize: "var(--cordon-size-title)", fontWeight: 600 }}>
+      {children}
+    </h2>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between py-1.5 text-sm">
+      <span style={{ color: "var(--cordon-copy)" }}>{label}</span>
+      <strong style={{ color: "var(--cordon-ink)" }}>{value}</strong>
+    </div>
+  );
+}
 
 export function VaultPage() {
   const [amount, setAmount] = useState("");
@@ -33,35 +48,35 @@ export function VaultPage() {
     }
   };
 
-  const metrics = [
-    { label: "TVL", value: `${formatUsdc(tvl)} USDC` },
-    { label: "Yield", value: "~14% APY" },
-    { label: "Exposure", value: `${formatUsdc(exposure)} USDC` },
-  ];
-
   return (
-    <Card title="Route: SIN → CGK">
-      <div className="grid grid-cols-3 gap-2.5">
-        {metrics.map((metric) => (
-          <div
-            key={metric.label}
-            className="flex flex-col gap-1 rounded-xl border border-white/10 bg-white/5 p-3"
-          >
-            <span className="text-xs text-white/50">{metric.label}</span>
-            <span className="text-[13px] font-semibold text-white">{metric.value}</span>
+    <Card>
+      <CardHeader>
+        <CardTitle>Route: SIN → CGK</CardTitle>
+      </CardHeader>
+      <CardBody>
+        <div className="flex flex-col gap-2">
+          <Row label="TVL" value={`${formatUsdc(tvl)} USDC`} />
+          <Row label="Yield" value="~14% APY" />
+          <Row label="Exposure" value={`${formatUsdc(exposure)} USDC`} />
+
+          <div className="flex flex-col gap-3 pt-3">
+            <TextField
+              inputMode="decimal"
+              placeholder="Amount (USDC)"
+              value={amount}
+              onChange={(event) => setAmount(event.target.value)}
+            />
+            <Button
+              variant="primary"
+              block
+              disabled={!isConnected || !market || isPending}
+              onClick={handleDeposit}
+            >
+              {isPending ? "Depositing…" : "Deposit"}
+            </Button>
           </div>
-        ))}
-      </div>
-      <input
-        className={INPUT}
-        inputMode="decimal"
-        placeholder="Amount (USDC)"
-        value={amount}
-        onChange={(event) => setAmount(event.target.value)}
-      />
-      <Button block disabled={!isConnected || !market || isPending} onClick={handleDeposit}>
-        {isPending ? "Depositing…" : "Deposit"}
-      </Button>
+        </div>
+      </CardBody>
     </Card>
   );
 }

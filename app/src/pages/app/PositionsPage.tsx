@@ -1,37 +1,60 @@
-import { Button } from "../../components/ui/Button";
-import { Card } from "../../components/ui/Card";
+import { Button, Card, CardBody, CardHeader, Tag } from "cordon-ui";
+import type { ReactNode } from "react";
+
+function CardTitle({ children }: { children: string }) {
+  return (
+    <h2 style={{ margin: 0, fontSize: "var(--cordon-size-title)", fontWeight: 600 }}>
+      {children}
+    </h2>
+  );
+}
+
+function Row({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="flex items-center justify-between py-1.5 text-sm">
+      <span style={{ color: "var(--cordon-copy)" }}>{label}</span>
+      <strong style={{ color: "var(--cordon-ink)" }}>{value}</strong>
+    </div>
+  );
+}
 
 export function PositionsPage() {
   return (
     <>
-      <Card title="TR286 · 15 Nov">
-        <div className="flex items-center justify-between text-sm text-white/60">
-          <span>Protection</span>
-          <strong className="text-white">100 USDC</strong>
-        </div>
-        <div className="flex items-center justify-between text-sm text-white/60">
-          <span>Status</span>
-          <span className="rounded-full border border-green-400/40 px-2.5 py-1 text-xs text-green-400">
-            Delayed 47m
-          </span>
-        </div>
-        <Button block>Claim 100 USDC</Button>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>TR286 · 15 Nov</CardTitle>
+            <Tag tone="positive" dot>
+              Delayed 47m
+            </Tag>
+          </div>
+        </CardHeader>
+        <CardBody>
+          <div className="flex flex-col gap-2">
+            <Row label="Protection" value="100 USDC" />
+            <Button variant="primary" block>
+              Claim 100 USDC
+            </Button>
+          </div>
+        </CardBody>
       </Card>
 
-      <Card title="AK380 · 16 Nov">
-        <div className="flex items-center justify-between text-sm text-white/60">
-          <span>Protection</span>
-          <strong className="text-white">100 USDC</strong>
-        </div>
-        <div className="flex items-center justify-between text-sm text-white/60">
-          <span>Status</span>
-          <span className="rounded-full border border-white/15 px-2.5 py-1 text-xs text-white/60">
-            Active
-          </span>
-        </div>
-        <Button variant="ghost" block>
-          Sell position
-        </Button>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>AK380 · 16 Nov</CardTitle>
+            <Tag tone="neutral">Active</Tag>
+          </div>
+        </CardHeader>
+        <CardBody>
+          <div className="flex flex-col gap-2">
+            <Row label="Protection" value="100 USDC" />
+            <Button variant="secondary" block>
+              Sell position
+            </Button>
+          </div>
+        </CardBody>
       </Card>
     </>
   );

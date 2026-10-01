@@ -1,8 +1,5 @@
+import { Button, Card, CardBody, CardHeader, TextField } from "cordon-ui";
 import { useNavigate } from "react-router-dom";
-
-import { Button } from "../../components/ui/Button";
-import { Card } from "../../components/ui/Card";
-import { INPUT, SILKSCREEN } from "../../lib/theme";
 
 const TRENDING = [
   { number: "SQ 956", route: "SIN → CGK", probability: "6.2%" },
@@ -10,36 +7,68 @@ const TRENDING = [
   { number: "TR 286", route: "SIN → CGK", probability: "6.2%" },
 ];
 
+function CardTitle({ children }: { children: string }) {
+  return (
+    <h2
+      style={{
+        margin: 0,
+        fontSize: "var(--cordon-size-title)",
+        fontWeight: "var(--cordon-weight-semibold)",
+        color: "var(--cordon-ink)",
+      }}
+    >
+      {children}
+    </h2>
+  );
+}
+
 export function HomePage() {
   const navigate = useNavigate();
 
   return (
     <>
-      <Card title="Find a flight">
-        <input className={INPUT} placeholder="Flight number, e.g. SQ956" />
-        <input className={INPUT} type="date" />
-        <Button block onClick={() => navigate("/app/market")}>
-          Search
-        </Button>
+      <Card>
+        <CardHeader>
+          <CardTitle>Find a flight</CardTitle>
+        </CardHeader>
+        <CardBody>
+          <div className="flex flex-col gap-3">
+            <TextField placeholder="Flight number, e.g. SQ956" />
+            <TextField type="date" />
+            <Button variant="primary" block onClick={() => navigate("/app/market")}>
+              Search
+            </Button>
+          </div>
+        </CardBody>
       </Card>
 
-      <Card title="Trending">
-        <ul className="flex flex-col">
-          {TRENDING.map((flight) => (
-            <li
-              key={flight.number}
-              className="flex items-center justify-between border-b border-white/10 py-3 last:border-b-0"
-            >
-              <div>
-                <div className="font-semibold text-white">{flight.number}</div>
-                <div className="text-[13px] text-white/50">{flight.route}</div>
-              </div>
-              <div className="text-sm text-green-400" style={{ fontFamily: SILKSCREEN }}>
-                {flight.probability}
-              </div>
-            </li>
-          ))}
-        </ul>
+      <Card>
+        <CardHeader>
+          <CardTitle>Trending</CardTitle>
+        </CardHeader>
+        <CardBody>
+          <ul className="flex flex-col">
+            {TRENDING.map((flight) => (
+              <li
+                key={flight.number}
+                className="flex items-center justify-between border-b py-3 last:border-b-0"
+                style={{ borderColor: "var(--cordon-hairline-soft)" }}
+              >
+                <div>
+                  <div className="font-semibold" style={{ color: "var(--cordon-ink)" }}>
+                    {flight.number}
+                  </div>
+                  <div className="text-[13px]" style={{ color: "var(--cordon-copy-dim)" }}>
+                    {flight.route}
+                  </div>
+                </div>
+                <div className="font-semibold" style={{ color: "var(--cordon-accent)" }}>
+                  {flight.probability}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </CardBody>
       </Card>
     </>
   );

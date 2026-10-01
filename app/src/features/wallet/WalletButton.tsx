@@ -1,6 +1,6 @@
+import { Button } from "cordon-ui";
 import { useAccount, useConnect, useDisconnect } from "wagmi";
 
-import { Button } from "../../components/ui/Button";
 import { shortenAddress } from "../../lib/format";
 
 export function WalletButton() {
@@ -10,7 +10,7 @@ export function WalletButton() {
 
   if (isConnected && address) {
     return (
-      <Button variant="ghost" onClick={() => disconnect()}>
+      <Button variant="secondary" size="sm" onClick={() => disconnect()}>
         {shortenAddress(address)}
       </Button>
     );
@@ -19,8 +19,14 @@ export function WalletButton() {
   const connector = connectors[0];
 
   return (
-    <Button onClick={() => connector && connect({ connector })} disabled={isPending || !connector}>
-      {isPending ? "Connecting…" : "Connect"}
+    <Button
+      variant="primary"
+      size="sm"
+      loading={isPending}
+      disabled={!connector}
+      onClick={() => connector && connect({ connector })}
+    >
+      Connect
     </Button>
   );
 }
