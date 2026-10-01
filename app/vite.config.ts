@@ -8,8 +8,8 @@ export default defineConfig({
     VitePWA({
       registerType: "autoUpdate",
       manifest: {
-        name: "Skyasa",
-        short_name: "Skyasa",
+        name: "Gathaero",
+        short_name: "Gathaero",
         description: "Predict and protect against flight delays, settled instantly on-chain.",
         theme_color: "#0ea5e9",
         background_color: "#020617",

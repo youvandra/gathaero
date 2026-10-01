@@ -30,7 +30,7 @@ contract Deploy is Script {
             address(collateral),
             address(oracle),
             address(registry),
-            "ipfs://skyasa/{id}.json"
+            "ipfs://gathaero/{id}.json"
         );
 
         bytes32 flightId = keccak256("SQ956-2026-10-01");

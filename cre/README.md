@@ -1,4 +1,4 @@
-# Skyasa CRE workflow
+# Gathaero CRE workflow
 
 Chainlink Runtime Environment (CRE) workflow that reads flight status from
 AeroDataBox and writes a signed report to `FlightOracleReceiver` on Arbitrum.

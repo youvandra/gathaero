@@ -1,5 +1,5 @@
-import { Button } from "../components/ui/Button";
-import { Card } from "../components/ui/Card";
+import { Button } from "../../components/ui/Button";
+import { Card } from "../../components/ui/Card";
 
 const TRENDING_FLIGHTS = [
   { number: "SQ 956", route: "SIN → CGK", probability: "6.2%" },

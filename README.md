@@ -1,4 +1,4 @@
-# Skyasa
+# Gathaero
 
 Flight-risk market: predict and protect against flight delays, settled on-chain.
 Prediction market and delay protection are the same primitive — a position on a

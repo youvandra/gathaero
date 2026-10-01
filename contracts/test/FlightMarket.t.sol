@@ -48,7 +48,7 @@ contract FlightMarketTest is Test {
             address(usdc),
             address(oracle),
             address(registry),
-            "ipfs://skyasa/{id}.json"
+            "ipfs://gathaero/{id}.json"
         );
 
         flightId = keccak256("SQ956-2026-10-01");

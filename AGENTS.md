@@ -1,4 +1,4 @@
-# Skyasa — Agent & Contributor Guide
+# Gathaero — Agent & Contributor Guide
 
 Flight-risk market: prediction + delay protection, settled on-chain.
 Target: Arbitrum Metropolis (Track 02 — Consumer Products & Payments).
