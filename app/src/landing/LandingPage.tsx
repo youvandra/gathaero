@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 
-import videoSrc from "./video.mp4";
+import videoSrc from "../assets/hero.mp4";
 
 const CTA_GRADIENT = "linear-gradient(to bottom, #2B2B2B, #101010)";
 const SILKSCREEN = "'Silkscreen', cursive";

@@ -1,5 +1,4 @@
-import { SiteFooter } from "../../components/marketing/SiteFooter";
-import { SiteNav } from "../../components/marketing/SiteNav";
+import { MarketingShell } from "../../components/marketing/MarketingShell";
 
 const SECTIONS = [
   {
@@ -18,31 +17,28 @@ const SECTIONS = [
     title: "Network",
     body: "Deployed on Arbitrum. Testnet chain id 421614, mainnet chain id 143.",
   },
-] as const;
+];
 
 export function DocsPage() {
   return (
-    <div className="landing">
-      <div className="landing__bg" aria-hidden="true" />
-      <div className="landing__inner">
-        <SiteNav />
-        <main className="page">
-          <header className="page__head">
-            <h1 className="page__title">Docs</h1>
-            <p className="page__sub">The pieces that make a flight market settle on its own.</p>
-          </header>
+    <MarketingShell>
+      <div className="mx-auto max-w-5xl py-8">
+        <header className="mb-10 max-w-xl">
+          <h1 className="text-3xl font-semibold text-white sm:text-4xl">Docs</h1>
+          <p className="mt-3 text-white/60">
+            The pieces that make a flight market settle on its own.
+          </p>
+        </header>
 
-          <div className="doc-grid">
-            {SECTIONS.map((section) => (
-              <article key={section.title} className="doc-card">
-                <h2 className="doc-card__title">{section.title}</h2>
-                <p className="doc-card__body">{section.body}</p>
-              </article>
-            ))}
-          </div>
-        </main>
-        <SiteFooter />
+        <div className="grid gap-4 sm:grid-cols-2">
+          {SECTIONS.map((section) => (
+            <article key={section.title} className="rounded-2xl bg-white/10 p-6 backdrop-blur-lg">
+              <h2 className="mb-2 text-lg font-semibold text-white">{section.title}</h2>
+              <p className="text-sm leading-relaxed text-white/60">{section.body}</p>
+            </article>
+          ))}
+        </div>
       </div>
-    </div>
+    </MarketingShell>
   );
 }
