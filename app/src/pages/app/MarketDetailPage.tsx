@@ -27,6 +27,7 @@ import {
   useMarketAddress,
   useMarketState,
 } from "../../features/market/useFlightMarket";
+import { useBoardingPass } from "../../features/market/useBoardingPass";
 import { formatUsdc } from "../../lib/format";
 
 type Tab = "protection" | "prediction";
@@ -60,6 +61,11 @@ export function MarketDetailPage() {
   const [tab, setTab] = useState<Tab>("protection");
   const [buyOpen, setBuyOpen] = useState(false);
   const [amount, setAmount] = useState("6.20");
+  const [passOpen, setPassOpen] = useState(false);
+  const [reference, setReference] = useState("");
+
+  const { isVerified, verify } = useBoardingPass();
+  const verified = isVerified(market.code);
 
   const onChain = market.code === DEFAULT_MARKET_CODE;
   const flightId = flightIdOf(market.code, market.isoDate);
@@ -95,6 +101,20 @@ export function MarketDetailPage() {
         children: error instanceof Error ? error.message : "Try again",
       });
     }
+  };
+
+  const confirmVerify = () => {
+    if (reference.trim().length < 5) {
+      notify({ tone: "caution", title: "Enter a valid booking reference" });
+      return;
+    }
+    verify(market.code, reference.trim().toUpperCase());
+    notify({
+      tone: "positive",
+      title: "Boarding pass verified",
+      children: `${market.code} · insurable interest confirmed`,
+    });
+    setPassOpen(false);
   };
 
   return (
@@ -146,14 +166,55 @@ export function MarketDetailPage() {
                   />
                   <Row label="Buy window" value="closes at landing" />
                 </div>
-                <Button
-                  variant="primary"
-                  block
-                  disabled={!isConnected || !marketAddress}
-                  onClick={() => setBuyOpen(true)}
-                >
-                  Buy protection
-                </Button>
+                {verified ? (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <span
+                        style={{
+                          color: "var(--cordon-copy-dim)",
+                          fontSize: "var(--cordon-size-caption)",
+                        }}
+                      >
+                        Passenger
+                      </span>
+                      <Tag tone="positive" dot>
+                        Verified
+                      </Tag>
+                    </div>
+                    <Button
+                      variant="primary"
+                      block
+                      disabled={!isConnected || !marketAddress}
+                      onClick={() => setBuyOpen(true)}
+                    >
+                      Buy protection
+                    </Button>
+                  </>
+                ) : (
+                  <div
+                    className="flex flex-col gap-3 rounded-[var(--cordon-radius-3)] border p-4"
+                    style={{
+                      borderColor: "var(--cordon-hairline)",
+                      background: "var(--cordon-paper-raised)",
+                    }}
+                  >
+                    <span style={{ color: "var(--cordon-ink)", fontWeight: 600 }}>
+                      Verify your boarding pass
+                    </span>
+                    <span
+                      style={{
+                        color: "var(--cordon-copy)",
+                        fontSize: "var(--cordon-size-caption)",
+                      }}
+                    >
+                      Protection is a hedge, so you must be a passenger on this flight —
+                      insurable interest. Verify to unlock buying.
+                    </span>
+                    <Button variant="secondary" block onClick={() => setPassOpen(true)}>
+                      Verify boarding pass
+                    </Button>
+                  </div>
+                )}
                 <p
                   style={{
                     margin: 0,
@@ -259,6 +320,41 @@ export function MarketDetailPage() {
           <Row label="You pay" value={`${formatUsdc(parseUnits(amount || "0", 6))} USDC`} />
           <Row label="Pays if delayed" value={`~${payout.toFixed(0)} USDC`} />
           <Row label="Implied delay" value={`${(probability * 100).toFixed(1)}%`} />
+        </div>
+      </Modal>
+
+      <Modal
+        open={passOpen}
+        onClose={() => setPassOpen(false)}
+        title="Verify boarding pass"
+        description={`${market.code} · ${market.route} · ${market.date}`}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setPassOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={confirmVerify}>
+              Verify
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-3">
+          <TextField
+            placeholder="Booking reference — e.g. ABC123"
+            value={reference}
+            onChange={(event) => setReference(event.target.value)}
+          />
+          <p
+            style={{
+              margin: 0,
+              color: "var(--cordon-copy-dim)",
+              fontSize: "var(--cordon-size-caption)",
+            }}
+          >
+            We confirm you are a passenger on this flight. This enforces insurable interest —
+            nothing else is stored on-chain.
+          </p>
         </div>
       </Modal>
     </>
