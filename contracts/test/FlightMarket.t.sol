@@ -177,6 +177,27 @@ contract FlightMarketTest is Test {
         factory.createProtection(flightId);
     }
 
+    function testRangeMarketsResolveByArrival() public {
+        FlightMarket inRange = FlightMarket(
+            factory.createRange(
+                flightId, scheduledArrival + 5 minutes, scheduledArrival + 15 minutes
+            )
+        );
+        FlightMarket outRange = FlightMarket(
+            factory.createRange(
+                flightId, scheduledArrival + 20 minutes, scheduledArrival + 30 minutes
+            )
+        );
+
+        feeder.feed(flightId, 10, true);
+
+        inRange.resolve();
+        assertEq(uint256(inRange.winning()), uint256(Outcome.OnTime));
+
+        outRange.resolve();
+        assertEq(uint256(outRange.winning()), uint256(Outcome.Delayed));
+    }
+
     function testThresholdMarketsResolveByArrival() public {
         FlightMarket landsBy =
             FlightMarket(factory.createThreshold(flightId, scheduledArrival + 30 minutes));

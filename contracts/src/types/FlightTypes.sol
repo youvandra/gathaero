@@ -8,7 +8,8 @@ enum Outcome {
 
 enum MarketKind {
     Protection,
-    Threshold
+    Threshold,
+    Range
 }
 
 struct Flight {

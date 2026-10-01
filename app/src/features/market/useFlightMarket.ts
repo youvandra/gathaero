@@ -100,15 +100,16 @@ export function useAddLiquidity(market?: Address) {
   return { addLiquidity, isPending };
 }
 
-export function useThresholdMarketAddress(
+export function useRangeMarketAddress(
   flightId: `0x${string}`,
-  strikeArrival: bigint,
+  lower: bigint,
+  upper: bigint,
 ): Address | undefined {
   const { data } = useReadContract({
     address: env.contracts.marketFactory,
     abi: marketFactoryAbi,
-    functionName: "thresholdMarketOf",
-    args: [flightId, strikeArrival],
+    functionName: "rangeMarketOf",
+    args: [flightId, lower, upper],
     query: { enabled: isConfigured },
   });
 

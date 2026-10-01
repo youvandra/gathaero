@@ -16,7 +16,7 @@ import { parseUnits } from "viem";
 import { useAccount } from "wagmi";
 
 import { ProbabilityPanel } from "../../features/dashboard/ProbabilityPanel";
-import { PredictionStrikes } from "../../features/dashboard/PredictionStrikes";
+import { PredictionBuckets } from "../../features/dashboard/PredictionBuckets";
 import { DEFAULT_MARKET_CODE, findMarket } from "../../features/dashboard/mockMarkets";
 import {
   flightIdOf,
@@ -145,19 +145,19 @@ export function MarketDetailPage() {
                 <Row label="Open interest" value={`$${market.openInterest.toLocaleString()}`} />
               </div>
               <BarChart
-                data={market.strikes.map((strike) => ({
-                  label: strike.time,
-                  value: strike.yes * 100,
+                data={market.buckets.map((bucket) => ({
+                  label: `${bucket.from}–${bucket.to}`,
+                  value: bucket.yes * 100,
                   glaze: "violet" as const,
                 }))}
                 height={170}
                 format={(value) => `${value.toFixed(0)}%`}
                 label="Arrival distribution"
               />
-              <PredictionStrikes
+              <PredictionBuckets
                 flightId={flightId}
                 date={market.isoDate}
-                strikes={market.strikes}
+                buckets={market.buckets}
               />
               <p style={{ margin: 0, color: "var(--cordon-copy-dim)", fontSize: "var(--cordon-size-caption)" }}>
                 Trade the actual landing time against a strike. Positions stay open and

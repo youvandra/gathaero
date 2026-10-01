@@ -1,4 +1,4 @@
-# Gathaero — Spec & Catatan
+# Gathæro — Spec & Catatan
 
 > Event-driven derivatives market onchain: posisi atas risiko delay penerbangan.
 > Hedger (traveler) dapat proteksi; trader dapat pasar. Settlement instan.

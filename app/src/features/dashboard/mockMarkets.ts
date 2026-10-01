@@ -1,7 +1,8 @@
 export type MarketStatus = "open" | "delayed" | "resolved";
 
-export type Strike = {
-  time: string;
+export type Bucket = {
+  from: string;
+  to: string;
   yes: number;
 };
 
@@ -19,7 +20,7 @@ export type FlightMarket = {
   openInterest: number;
   history: number[];
   expectedAta: string;
-  strikes: Strike[];
+  buckets: Bucket[];
 };
 
 export const DEFAULT_MARKET_CODE = "SQ956";
@@ -39,11 +40,11 @@ export const MOCK_MARKETS: FlightMarket[] = [
     openInterest: 3_200,
     history: [4.1, 4.6, 5.2, 4.9, 5.6, 5.4, 6.0, 6.2],
     expectedAta: "07:41",
-    strikes: [
-      { time: "07:30", yes: 0.14 },
-      { time: "07:44", yes: 0.63 },
-      { time: "08:00", yes: 0.88 },
-      { time: "08:15", yes: 0.95 },
+    buckets: [
+      { from: "07:30", to: "07:40", yes: 0.12 },
+      { from: "07:40", to: "07:50", yes: 0.55 },
+      { from: "07:50", to: "08:00", yes: 0.26 },
+      { from: "08:00", to: "08:10", yes: 0.07 },
     ],
   },
   {
@@ -60,11 +61,11 @@ export const MOCK_MARKETS: FlightMarket[] = [
     openInterest: 2_640,
     history: [6.2, 6.8, 7.4, 7.1, 8.0, 8.6, 8.8, 9.1],
     expectedAta: "09:27",
-    strikes: [
-      { time: "09:10", yes: 0.21 },
-      { time: "09:20", yes: 0.55 },
-      { time: "09:35", yes: 0.82 },
-      { time: "09:50", yes: 0.93 },
+    buckets: [
+      { from: "09:05", to: "09:15", yes: 0.15 },
+      { from: "09:15", to: "09:25", yes: 0.5 },
+      { from: "09:25", to: "09:35", yes: 0.27 },
+      { from: "09:35", to: "09:45", yes: 0.08 },
     ],
   },
   {
@@ -81,11 +82,11 @@ export const MOCK_MARKETS: FlightMarket[] = [
     openInterest: 1_980,
     history: [32, 38, 44, 51, 57, 60, 61, 62],
     expectedAta: "15:02",
-    strikes: [
-      { time: "14:05", yes: 0.08 },
-      { time: "14:30", yes: 0.34 },
-      { time: "15:00", yes: 0.61 },
-      { time: "15:30", yes: 0.79 },
+    buckets: [
+      { from: "14:05", to: "14:20", yes: 0.12 },
+      { from: "14:20", to: "14:35", yes: 0.34 },
+      { from: "14:35", to: "14:50", yes: 0.36 },
+      { from: "14:50", to: "15:05", yes: 0.18 },
     ],
   },
   {
@@ -102,11 +103,11 @@ export const MOCK_MARKETS: FlightMarket[] = [
     openInterest: 1_120,
     history: [5.0, 4.8, 4.5, 4.6, 4.3, 4.5, 4.4, 4.4],
     expectedAta: "12:18",
-    strikes: [
-      { time: "12:10", yes: 0.18 },
-      { time: "12:20", yes: 0.66 },
-      { time: "12:35", yes: 0.9 },
-      { time: "12:50", yes: 0.97 },
+    buckets: [
+      { from: "12:10", to: "12:20", yes: 0.3 },
+      { from: "12:20", to: "12:30", yes: 0.5 },
+      { from: "12:30", to: "12:40", yes: 0.15 },
+      { from: "12:40", to: "12:50", yes: 0.05 },
     ],
   },
   {
@@ -123,11 +124,11 @@ export const MOCK_MARKETS: FlightMarket[] = [
     openInterest: 1_450,
     history: [8.1, 8.6, 9.2, 9.8, 10.4, 10.9, 11.2, 11.4],
     expectedAta: "16:52",
-    strikes: [
-      { time: "16:30", yes: 0.19 },
-      { time: "16:40", yes: 0.48 },
-      { time: "17:00", yes: 0.76 },
-      { time: "17:20", yes: 0.9 },
+    buckets: [
+      { from: "16:30", to: "16:45", yes: 0.18 },
+      { from: "16:45", to: "17:00", yes: 0.4 },
+      { from: "17:00", to: "17:15", yes: 0.28 },
+      { from: "17:15", to: "17:30", yes: 0.14 },
     ],
   },
   {
@@ -144,11 +145,11 @@ export const MOCK_MARKETS: FlightMarket[] = [
     openInterest: 640,
     history: [4.4, 4.1, 3.9, 3.7, 3.8, 3.6, 3.7, 3.6],
     expectedAta: "18:12",
-    strikes: [
-      { time: "18:05", yes: 0.22 },
-      { time: "18:15", yes: 0.7 },
-      { time: "18:30", yes: 0.92 },
-      { time: "18:45", yes: 0.98 },
+    buckets: [
+      { from: "18:05", to: "18:15", yes: 0.35 },
+      { from: "18:15", to: "18:25", yes: 0.45 },
+      { from: "18:25", to: "18:35", yes: 0.15 },
+      { from: "18:35", to: "18:45", yes: 0.05 },
     ],
   },
 ];

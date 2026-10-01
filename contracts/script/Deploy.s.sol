@@ -40,6 +40,11 @@ contract Deploy is Script {
         address market = factory.createProtection(flightId);
         address thresholdMarket =
             factory.createThreshold(flightId, uint64(block.timestamp + 2 hours + 45 minutes));
+        address rangeMarket = factory.createRange(
+            flightId,
+            uint64(block.timestamp + 2 hours + 30 minutes),
+            uint64(block.timestamp + 2 hours + 45 minutes)
+        );
 
         vm.stopBroadcast();
 
@@ -51,5 +56,6 @@ contract Deploy is Script {
         console2.log("factory", address(factory));
         console2.log("market", market);
         console2.log("thresholdMarket", thresholdMarket);
+        console2.log("rangeMarket", rangeMarket);
     }
 }

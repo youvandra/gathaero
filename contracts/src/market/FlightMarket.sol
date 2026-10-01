@@ -35,6 +35,8 @@ contract FlightMarket is IERC1155Receiver, ReentrancyGuard {
     uint16 public immutable delayThresholdMinutes;
     uint64 public immutable scheduledArrival;
     uint64 public immutable strikeArrival;
+    uint64 public immutable lowerBound;
+    uint64 public immutable upperBound;
 
     uint256 public totalShares;
     uint256 public lpCollateral;
@@ -57,6 +59,8 @@ contract FlightMarket is IERC1155Receiver, ReentrancyGuard {
         uint16 delayThresholdMinutes_,
         uint64 scheduledArrival_,
         uint64 strikeArrival_,
+        uint64 lowerBound_,
+        uint64 upperBound_,
         string memory uri_
     ) {
         if (collateral_ == address(0) || oracle_ == address(0)) {
@@ -69,6 +73,8 @@ contract FlightMarket is IERC1155Receiver, ReentrancyGuard {
         delayThresholdMinutes = delayThresholdMinutes_;
         scheduledArrival = scheduledArrival_;
         strikeArrival = strikeArrival_;
+        lowerBound = lowerBound_;
+        upperBound = upperBound_;
         outcome = new OutcomeToken(address(this), uri_);
     }
 
@@ -148,14 +154,21 @@ contract FlightMarket is IERC1155Receiver, ReentrancyGuard {
     }
 
     function _computeWinning(int32 delayMinutes) private view returns (Outcome) {
+        int64 actualArrival = int64(uint64(scheduledArrival)) + int64(delayMinutes) * 60;
+
         if (kind == MarketKind.Protection) {
             return
                 delayMinutes > int32(uint32(delayThresholdMinutes))
                     ? Outcome.Delayed
                     : Outcome.OnTime;
         }
-        int64 actualArrival = int64(uint64(scheduledArrival)) + int64(delayMinutes) * 60;
-        return actualArrival <= int64(uint64(strikeArrival)) ? Outcome.OnTime : Outcome.Delayed;
+        if (kind == MarketKind.Threshold) {
+            return actualArrival <= int64(uint64(strikeArrival)) ? Outcome.OnTime : Outcome.Delayed;
+        }
+        return (actualArrival > int64(uint64(lowerBound))
+                && actualArrival <= int64(uint64(upperBound)))
+            ? Outcome.OnTime
+            : Outcome.Delayed;
     }
 
     function redeem() external nonReentrant returns (uint256 amountOut) {

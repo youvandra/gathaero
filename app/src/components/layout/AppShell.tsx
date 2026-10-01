@@ -15,11 +15,12 @@ const APP_NAV: { to: string; label: string; icon: IconName; end: boolean; soon?:
 
 function Brand() {
   return (
-    <Link to="/" className="inline-flex items-center gap-2 font-semibold no-underline" style={{ color: "var(--cordon-ink)" }}>
-      <span style={{ color: "var(--cordon-accent)" }}>
-        <Icon name="globe" />
-      </span>
-      gathaero
+    <Link
+      to="/"
+      className="inline-flex items-center font-semibold no-underline"
+      style={{ color: "var(--cordon-ink)" }}
+    >
+      gathæro
     </Link>
   );
 }

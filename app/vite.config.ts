@@ -11,8 +11,8 @@ export default defineConfig({
     VitePWA({
       registerType: "autoUpdate",
       manifest: {
-        name: "Gathaero",
-        short_name: "Gathaero",
+        name: "Gathæro",
+        short_name: "Gathæro",
         description: "Predict and protect against flight delays, settled instantly on-chain.",
         theme_color: "#0ea5e9",
         background_color: "#020617",

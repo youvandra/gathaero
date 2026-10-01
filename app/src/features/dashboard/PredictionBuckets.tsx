@@ -10,29 +10,33 @@ import {
   strikeTimestamp,
   useBuyOutcome,
   useMarketState,
-  useThresholdMarketAddress,
+  useRangeMarketAddress,
 } from "../market/useFlightMarket";
-import type { Strike } from "./mockMarkets";
+import type { Bucket } from "./mockMarkets";
 
-function StrikeRow({
+function BucketRow({
   flightId,
   date,
-  strike,
+  bucket,
   amount,
 }: {
   flightId: `0x${string}`;
   date: string;
-  strike: Strike;
+  bucket: Bucket;
   amount: string;
 }) {
   const { isConnected } = useAccount();
-  const address = useThresholdMarketAddress(flightId, strikeTimestamp(date, strike.time));
+  const address = useRangeMarketAddress(
+    flightId,
+    strikeTimestamp(date, bucket.from),
+    strikeTimestamp(date, bucket.to),
+  );
   const state = useMarketState(address);
   const { buyOutcome, isPending } = useBuyOutcome(address);
 
   const live = isConfigured && Boolean(address);
   const yes =
-    live && state.probability !== undefined ? 1 - Number(state.probability) / 1e18 : strike.yes;
+    live && state.probability !== undefined ? 1 - Number(state.probability) / 1e18 : bucket.yes;
   const no = 1 - yes;
 
   const trade = (outcome: number) => {
@@ -55,7 +59,7 @@ function StrikeRow({
             fontVariantNumeric: "tabular-nums",
           }}
         >
-          Lands by {strike.time}
+          {bucket.from} – {bucket.to}
         </span>
         <span style={{ color: "var(--cordon-copy-dim)", fontSize: "var(--cordon-size-micro)" }}>
           {live ? "On-chain" : "Demo"}
@@ -81,14 +85,14 @@ function StrikeRow({
   );
 }
 
-export function PredictionStrikes({
+export function PredictionBuckets({
   flightId,
   date,
-  strikes,
+  buckets,
 }: {
   flightId: `0x${string}`;
   date: string;
-  strikes: Strike[];
+  buckets: Bucket[];
 }) {
   const [amount, setAmount] = useState("5");
 
@@ -113,12 +117,12 @@ export function PredictionStrikes({
         />
       </div>
       <div>
-        {strikes.map((strike) => (
-          <StrikeRow
-            key={strike.time}
+        {buckets.map((bucket) => (
+          <BucketRow
+            key={`${bucket.from}-${bucket.to}`}
             flightId={flightId}
             date={date}
-            strike={strike}
+            bucket={bucket}
             amount={amount}
           />
         ))}

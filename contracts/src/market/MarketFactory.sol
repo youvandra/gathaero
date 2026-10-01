@@ -17,6 +17,7 @@ contract MarketFactory is Ownable {
 
     mapping(bytes32 => address) private _protection;
     mapping(bytes32 => mapping(uint64 => address)) private _threshold;
+    mapping(bytes32 => address) private _ranges;
 
     event MarketCreated(bytes32 indexed flightId, address market, MarketKind kind, uint64 param);
     event BaseUriUpdated(string baseUri);
@@ -58,6 +59,8 @@ contract MarketFactory is Ownable {
                 flight.delayThresholdMinutes,
                 flight.scheduledArrival,
                 0,
+                0,
+                0,
                 baseUri
             )
         );
@@ -83,12 +86,47 @@ contract MarketFactory is Ownable {
                 flight.delayThresholdMinutes,
                 flight.scheduledArrival,
                 strikeArrival,
+                0,
+                0,
                 baseUri
             )
         );
         _threshold[flightId][strikeArrival] = market;
 
         emit MarketCreated(flightId, market, MarketKind.Threshold, strikeArrival);
+    }
+
+    function createRange(bytes32 flightId, uint64 lower, uint64 upper)
+        external
+        onlyOwner
+        returns (address market)
+    {
+        require(upper > lower, "Invalid range");
+        bytes32 key = rangeKey(flightId, lower, upper);
+        if (_ranges[key] != address(0)) revert MarketExists();
+
+        Flight memory flight = registry.getFlight(flightId);
+        market = address(
+            new FlightMarket(
+                collateral,
+                address(oracle),
+                flightId,
+                MarketKind.Range,
+                flight.delayThresholdMinutes,
+                flight.scheduledArrival,
+                0,
+                lower,
+                upper,
+                baseUri
+            )
+        );
+        _ranges[key] = market;
+
+        emit MarketCreated(flightId, market, MarketKind.Range, upper);
+    }
+
+    function rangeKey(bytes32 flightId, uint64 lower, uint64 upper) public pure returns (bytes32) {
+        return keccak256(abi.encodePacked(flightId, lower, upper));
     }
 
     function marketOf(bytes32 flightId) external view returns (address) {
@@ -101,6 +139,14 @@ contract MarketFactory is Ownable {
         returns (address)
     {
         return _threshold[flightId][strikeArrival];
+    }
+
+    function rangeMarketOf(bytes32 flightId, uint64 lower, uint64 upper)
+        external
+        view
+        returns (address)
+    {
+        return _ranges[rangeKey(flightId, lower, upper)];
     }
 
     function isListed(bytes32 flightId) external view returns (bool) {

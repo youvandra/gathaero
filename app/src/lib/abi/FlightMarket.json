@@ -38,6 +38,16 @@
         "internalType": "uint64"
       },
       {
+        "name": "lowerBound_",
+        "type": "uint64",
+        "internalType": "uint64"
+      },
+      {
+        "name": "upperBound_",
+        "type": "uint64",
+        "internalType": "uint64"
+      },
+      {
         "name": "uri_",
         "type": "string",
         "internalType": "string"
@@ -149,6 +159,19 @@
         "name": "",
         "type": "uint8",
         "internalType": "enum MarketKind"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "lowerBound",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint64",
+        "internalType": "uint64"
       }
     ],
     "stateMutability": "view"
@@ -432,6 +455,19 @@
         "name": "",
         "type": "uint256",
         "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "upperBound",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint64",
+        "internalType": "uint64"
       }
     ],
     "stateMutability": "view"

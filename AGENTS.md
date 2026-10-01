@@ -1,4 +1,4 @@
-# Gathaero — Agent & Contributor Guide
+# Gathæro — Agent & Contributor Guide
 
 Flight-risk market: prediction + delay protection, settled on-chain.
 Target: Arbitrum Open House Singapore buildathon.
