@@ -1,3 +1,5 @@
+import { useNavigate } from "react-router-dom";
+
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { INPUT, SILKSCREEN } from "../../lib/theme";
@@ -9,12 +11,16 @@ const TRENDING = [
 ];
 
 export function HomePage() {
+  const navigate = useNavigate();
+
   return (
     <>
       <Card title="Find a flight">
         <input className={INPUT} placeholder="Flight number, e.g. SQ956" />
         <input className={INPUT} type="date" />
-        <Button block>Search</Button>
+        <Button block onClick={() => navigate("/app/market")}>
+          Search
+        </Button>
       </Card>
 
       <Card title="Trending">
