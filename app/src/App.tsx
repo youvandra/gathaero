@@ -1,8 +1,9 @@
-import { HashRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
 import { Providers } from "./app/Providers";
 import { AppLayout } from "./components/layout/AppShell";
 import { LandingPage } from "./landing/LandingPage";
+import { EarnPage } from "./pages/app/EarnPage";
 import { HomePage } from "./pages/app/HomePage";
 import { MarketDetailPage } from "./pages/app/MarketDetailPage";
 import { MarketsPage } from "./pages/app/MarketsPage";
@@ -15,7 +16,7 @@ import { MarketsPage as PublicMarketsPage } from "./pages/public/MarketsPage";
 export default function App() {
   return (
     <Providers>
-      <HashRouter>
+      <BrowserRouter>
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/markets" element={<PublicMarketsPage />} />
@@ -28,11 +29,12 @@ export default function App() {
             <Route path="market/:code" element={<MarketDetailPage />} />
             <Route path="positions" element={<PositionsPage />} />
             <Route path="vault" element={<VaultPage />} />
+            <Route path="earn" element={<EarnPage />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </HashRouter>
+      </BrowserRouter>
     </Providers>
   );
 }

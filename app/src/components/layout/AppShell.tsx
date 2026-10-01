@@ -5,11 +5,12 @@ import type { IconName } from "cordon-ui";
 
 import { WalletButton } from "../../features/wallet/WalletButton";
 
-const APP_NAV: { to: string; label: string; icon: IconName; end: boolean }[] = [
+const APP_NAV: { to: string; label: string; icon: IconName; end: boolean; soon?: boolean }[] = [
   { to: "/app", label: "Home", icon: "home", end: true },
-  { to: "/app/market", label: "Markets", icon: "bolt", end: false },
+  { to: "/app/market", label: "Markets", icon: "globe", end: false },
   { to: "/app/positions", label: "Positions", icon: "layers", end: false },
   { to: "/app/vault", label: "Vault", icon: "star", end: false },
+  { to: "/app/earn", label: "Earn", icon: "bolt", end: false, soon: true },
 ];
 
 function Brand() {
@@ -60,6 +61,14 @@ function SideNav() {
           >
             <Icon name={item.icon} />
             {item.label}
+            {item.soon ? (
+              <span
+                className="ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+                style={{ background: "var(--cordon-accent-quiet)", color: "var(--cordon-accent)" }}
+              >
+                Soon
+              </span>
+            ) : null}
           </NavLink>
         ))}
       </div>
@@ -88,7 +97,15 @@ function BottomNav() {
           })}
         >
           <Icon name={item.icon} size={18} />
-          <span>{item.label}</span>
+          <span className="relative">
+            {item.label}
+            {item.soon ? (
+              <span
+                className="absolute -right-2 -top-0.5 h-1.5 w-1.5 rounded-full"
+                style={{ background: "var(--cordon-accent)" }}
+              />
+            ) : null}
+          </span>
         </NavLink>
       ))}
     </nav>
