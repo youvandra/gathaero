@@ -12,16 +12,19 @@ contracts/   Solidity + Foundry
 app/         Vite + React + TypeScript (PWA)
 cre/         Chainlink CRE workflow
 feeder/      Mock feeder (fallback oracle)
+docs/        Product spec
 ```
 
 ## Networks
 - Arbitrum Testnet — chain id `421614`, RPC `https://rpc.testnet.arbitrum.xyz`
 - Arbitrum Mainnet — chain id `143`, RPC `https://rpc.arbitrum.xyz`
 
-## Quickstart
+## Commands
 ```
 cd contracts && forge build && forge test
-cd app && npm install && npm run dev
+cd app       && npm install && npm run dev && npm run build
+cd feeder    && npm install && npm run start
+cd cre       && see README
 ```
 
-See `AGENTS.md` for conventions and `airtime-spec.md` (parent) for the product spec.
+See `AGENTS.md` for conventions and `docs/spec.md` for the product spec.
