@@ -107,7 +107,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </aside>
         <div className="flex min-w-0 flex-col">
           <TopBar />
-          <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-5 p-5 pb-28 md:p-7 md:pb-7">
+          <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-5 p-5 pb-28 md:p-7 md:pb-7">
             {children}
           </main>
         </div>
