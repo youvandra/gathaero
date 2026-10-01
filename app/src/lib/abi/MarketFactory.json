@@ -58,7 +58,26 @@
   },
   {
     "type": "function",
-    "name": "createMarket",
+    "name": "createProtection",
+    "inputs": [
+      {
+        "name": "flightId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "market",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "createThreshold",
     "inputs": [
       {
         "name": "flightId",
@@ -66,9 +85,9 @@
         "internalType": "bytes32"
       },
       {
-        "name": "delayThresholdMinutes",
-        "type": "uint16",
-        "internalType": "uint16"
+        "name": "strikeArrival",
+        "type": "uint64",
+        "internalType": "uint64"
       }
     ],
     "outputs": [
@@ -179,6 +198,30 @@
   },
   {
     "type": "function",
+    "name": "thresholdMarketOf",
+    "inputs": [
+      {
+        "name": "flightId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "strikeArrival",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "transferOwnership",
     "inputs": [
       {
@@ -220,10 +263,16 @@
         "internalType": "address"
       },
       {
-        "name": "delayThresholdMinutes",
-        "type": "uint16",
+        "name": "kind",
+        "type": "uint8",
         "indexed": false,
-        "internalType": "uint16"
+        "internalType": "enum MarketKind"
+      },
+      {
+        "name": "param",
+        "type": "uint64",
+        "indexed": false,
+        "internalType": "uint64"
       }
     ],
     "anonymous": false
@@ -246,11 +295,6 @@
       }
     ],
     "anonymous": false
-  },
-  {
-    "type": "error",
-    "name": "FlightUnknown",
-    "inputs": []
   },
   {
     "type": "error",

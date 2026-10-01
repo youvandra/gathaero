@@ -4,7 +4,7 @@ import { Menu, X } from "lucide-react";
 
 import videoSrc from "../assets/hero.mp4";
 
-const CTA_GRADIENT = "linear-gradient(to bottom, #2B2B2B, #101010)";
+const CTA_GRADIENT = "linear-gradient(180deg, #bd4468 0%, #8c1320 100%)";
 const SILKSCREEN = "'Silkscreen', cursive";
 
 const NAV_LINKS = [

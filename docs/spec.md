@@ -42,6 +42,7 @@ Hedger (traveler) · Trader (spekulan) · LP (underwriter) · Oracle (CRE) · Mo
 | `FlightRegistry` | daftar flight (flightNo, tanggal, jadwal) |
 | `MarketFactory` | bikin market + outcome token per flight |
 | `FlightMarket` | AMM CPMM 2 outcome, buy, resolve, redeem, liquidity |
+| `MarketKind` | `Protection` (delay binary) · `Threshold` (ATA ≤ strike / prediction) |
 | `FlightOracleConsumer` | multi-reporter, simpan resolusi |
 | `FlightOracleReceiver` | `IReceiver` → terima report dari CRE |
 | `MockFeeder` | fallback signer (demo) |

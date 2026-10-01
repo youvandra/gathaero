@@ -1,48 +1,13 @@
-import { Surface } from "cordon-ui";
-
 export function ProbabilityPanel({ probability }: { probability: number }) {
   const onTime = 1 - probability;
 
-  const readout = (
-    <span className="flex items-baseline gap-1" style={{ color: "var(--cordon-on-glaze)" }}>
-      <span
-        style={{
-          fontSize: "clamp(2.5rem, 12cqw, 3.75rem)",
-          fontWeight: 700,
-          lineHeight: 1,
-          fontVariantNumeric: "tabular-nums",
-        }}
-      >
-        {(probability * 100).toFixed(1)}
-      </span>
-      <span style={{ fontSize: "1.25rem", fontWeight: 600 }}>%</span>
-    </span>
-  );
-
   return (
-    <Surface glaze="ember" radius="5" elevation="tile" className="flex flex-col items-center gap-5 p-6">
-      <div className="flex flex-col items-center gap-1" style={{ containerType: "inline-size" }}>
-        {readout}
-        <span
-          style={{
-            color: "var(--cordon-on-glaze-dim)",
-            fontSize: "var(--cordon-size-micro)",
-            textTransform: "uppercase",
-            letterSpacing: "0.08em",
-          }}
-        >
-          Chance of delay
-        </span>
-      </div>
-
-      <div className="grid w-full grid-cols-2 gap-3">
-        <div
-          className="flex flex-col gap-1 rounded-[var(--cordon-radius-3)] p-3"
-          style={{ background: "rgba(255,255,255,0.14)" }}
-        >
+    <div className="flex flex-col gap-5">
+      <div className="grid grid-cols-2 gap-4">
+        <div className="flex flex-col gap-1">
           <span
             style={{
-              color: "var(--cordon-on-glaze-dim)",
+              color: "var(--cordon-copy-dim)",
               fontSize: "var(--cordon-size-micro)",
               textTransform: "uppercase",
               letterSpacing: "0.06em",
@@ -50,17 +15,23 @@ export function ProbabilityPanel({ probability }: { probability: number }) {
           >
             On-time
           </span>
-          <span style={{ color: "var(--cordon-on-glaze)", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
-            {(onTime * 100).toFixed(1)}%
-          </span>
-        </div>
-        <div
-          className="flex flex-col gap-1 rounded-[var(--cordon-radius-3)] p-3"
-          style={{ background: "rgba(255,255,255,0.14)" }}
-        >
           <span
             style={{
-              color: "var(--cordon-on-glaze-dim)",
+              color: "var(--cordon-ink)",
+              fontSize: "var(--cordon-size-display)",
+              fontWeight: 700,
+              lineHeight: 1,
+              fontVariantNumeric: "tabular-nums",
+            }}
+          >
+            {(onTime * 100).toFixed(1)}
+            <span style={{ fontSize: "0.5em", fontWeight: 600 }}>%</span>
+          </span>
+        </div>
+        <div className="flex flex-col items-end gap-1 text-right">
+          <span
+            style={{
+              color: "var(--cordon-copy-dim)",
               fontSize: "var(--cordon-size-micro)",
               textTransform: "uppercase",
               letterSpacing: "0.06em",
@@ -68,11 +39,38 @@ export function ProbabilityPanel({ probability }: { probability: number }) {
           >
             Delayed
           </span>
-          <span style={{ color: "var(--cordon-on-glaze)", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
-            {(probability * 100).toFixed(1)}%
+          <span
+            style={{
+              color: "var(--cordon-critical)",
+              fontSize: "var(--cordon-size-display)",
+              fontWeight: 700,
+              lineHeight: 1,
+              fontVariantNumeric: "tabular-nums",
+            }}
+          >
+            {(probability * 100).toFixed(1)}
+            <span style={{ fontSize: "0.5em", fontWeight: 600 }}>%</span>
           </span>
         </div>
       </div>
-    </Surface>
+
+      <div
+        className="flex h-2.5 w-full overflow-hidden rounded-full"
+        style={{ background: "rgba(34,34,34,0.08)" }}
+      >
+        <div style={{ width: `${onTime * 100}%`, background: "var(--cordon-positive)" }} />
+        <div style={{ width: `${probability * 100}%`, background: "var(--cordon-critical)" }} />
+      </div>
+
+      <p
+        style={{
+          margin: 0,
+          color: "var(--cordon-copy-dim)",
+          fontSize: "var(--cordon-size-caption)",
+        }}
+      >
+        Implied by the market. Buy protection against the delayed side.
+      </p>
+    </div>
   );
 }

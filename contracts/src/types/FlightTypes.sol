@@ -6,6 +6,11 @@ enum Outcome {
     Delayed
 }
 
+enum MarketKind {
+    Protection,
+    Threshold
+}
+
 struct Flight {
     string number;
     uint64 scheduledArrival;

@@ -1,4 +1,4 @@
-export const CTA_GRADIENT = "linear-gradient(to bottom, #2B2B2B, #101010)";
+export const CTA_GRADIENT = "linear-gradient(180deg, #bd4468 0%, #8c1320 100%)";
 export const SILKSCREEN = "'Silkscreen', cursive";
 
 export const GLASS = "bg-white/10 backdrop-blur-lg";

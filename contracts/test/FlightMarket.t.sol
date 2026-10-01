@@ -31,6 +31,7 @@ contract FlightMarketTest is Test {
     FlightMarket internal market;
 
     bytes32 internal flightId;
+    uint64 internal scheduledArrival;
 
     address internal lp = address(0xA11CE);
     address internal trader = address(0xB0B);
@@ -52,8 +53,9 @@ contract FlightMarketTest is Test {
         );
 
         flightId = keccak256("SQ956-2026-10-01");
-        registry.registerFlight(flightId, "SQ956", uint64(block.timestamp + 2 hours), THRESHOLD);
-        market = FlightMarket(factory.createMarket(flightId, THRESHOLD));
+        scheduledArrival = uint64(block.timestamp + 2 hours);
+        registry.registerFlight(flightId, "SQ956", scheduledArrival, THRESHOLD);
+        market = FlightMarket(factory.createProtection(flightId));
 
         usdc.mint(lp, 1_000_000 * UNIT);
         usdc.mint(trader, 1_000_000 * UNIT);
@@ -172,6 +174,21 @@ contract FlightMarketTest is Test {
 
     function testFactoryRejectsDuplicateMarket() public {
         vm.expectRevert();
-        factory.createMarket(flightId, THRESHOLD);
+        factory.createProtection(flightId);
+    }
+
+    function testThresholdMarketsResolveByArrival() public {
+        FlightMarket landsBy =
+            FlightMarket(factory.createThreshold(flightId, scheduledArrival + 30 minutes));
+        FlightMarket tooEarly =
+            FlightMarket(factory.createThreshold(flightId, scheduledArrival - 10 minutes));
+
+        feeder.feed(flightId, 10, true);
+
+        landsBy.resolve();
+        assertEq(uint256(landsBy.winning()), uint256(Outcome.OnTime));
+
+        tooEarly.resolve();
+        assertEq(uint256(tooEarly.winning()), uint256(Outcome.Delayed));
     }
 }

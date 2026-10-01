@@ -37,7 +37,9 @@ contract Deploy is Script {
         registry.registerFlight(
             flightId, "SQ956", uint64(block.timestamp + 2 hours), thresholdMinutes
         );
-        address market = factory.createMarket(flightId, thresholdMinutes);
+        address market = factory.createProtection(flightId);
+        address thresholdMarket =
+            factory.createThreshold(flightId, uint64(block.timestamp + 2 hours + 45 minutes));
 
         vm.stopBroadcast();
 
@@ -48,5 +50,6 @@ contract Deploy is Script {
         console2.log("feeder", address(feeder));
         console2.log("factory", address(factory));
         console2.log("market", market);
+        console2.log("thresholdMarket", thresholdMarket);
     }
 }

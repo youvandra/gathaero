@@ -6,7 +6,8 @@ import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { IFlightOracle } from "../interfaces/IFlightOracle.sol";
 import { IFlightRegistry } from "../interfaces/IFlightRegistry.sol";
 import { FlightMarket } from "./FlightMarket.sol";
-import { FlightUnknown, MarketExists, ZeroAddress } from "../lib/Errors.sol";
+import { Flight, MarketKind } from "../types/FlightTypes.sol";
+import { MarketExists, ZeroAddress } from "../lib/Errors.sol";
 
 contract MarketFactory is Ownable {
     address public immutable collateral;
@@ -14,9 +15,10 @@ contract MarketFactory is Ownable {
     IFlightRegistry public immutable registry;
     string public baseUri;
 
-    mapping(bytes32 => address) private _markets;
+    mapping(bytes32 => address) private _protection;
+    mapping(bytes32 => mapping(uint64 => address)) private _threshold;
 
-    event MarketCreated(bytes32 indexed flightId, address market, uint16 delayThresholdMinutes);
+    event MarketCreated(bytes32 indexed flightId, address market, MarketKind kind, uint64 param);
     event BaseUriUpdated(string baseUri);
 
     constructor(
@@ -29,7 +31,9 @@ contract MarketFactory is Ownable {
         if (
             owner_ == address(0) || collateral_ == address(0) || oracle_ == address(0)
                 || registry_ == address(0)
-        ) revert ZeroAddress();
+        ) {
+            revert ZeroAddress();
+        }
         collateral = collateral_;
         oracle = IFlightOracle(oracle_);
         registry = IFlightRegistry(registry_);
@@ -41,27 +45,65 @@ contract MarketFactory is Ownable {
         emit BaseUriUpdated(baseUri_);
     }
 
-    function createMarket(bytes32 flightId, uint16 delayThresholdMinutes)
+    function createProtection(bytes32 flightId) external onlyOwner returns (address market) {
+        if (_protection[flightId] != address(0)) revert MarketExists();
+
+        Flight memory flight = registry.getFlight(flightId);
+        market = address(
+            new FlightMarket(
+                collateral,
+                address(oracle),
+                flightId,
+                MarketKind.Protection,
+                flight.delayThresholdMinutes,
+                flight.scheduledArrival,
+                0,
+                baseUri
+            )
+        );
+        _protection[flightId] = market;
+
+        emit MarketCreated(flightId, market, MarketKind.Protection, flight.delayThresholdMinutes);
+    }
+
+    function createThreshold(bytes32 flightId, uint64 strikeArrival)
         external
         onlyOwner
         returns (address market)
     {
-        if (_markets[flightId] != address(0)) revert MarketExists();
-        if (!registry.exists(flightId)) revert FlightUnknown();
+        if (_threshold[flightId][strikeArrival] != address(0)) revert MarketExists();
 
+        Flight memory flight = registry.getFlight(flightId);
         market = address(
-            new FlightMarket(collateral, address(oracle), flightId, delayThresholdMinutes, baseUri)
+            new FlightMarket(
+                collateral,
+                address(oracle),
+                flightId,
+                MarketKind.Threshold,
+                flight.delayThresholdMinutes,
+                flight.scheduledArrival,
+                strikeArrival,
+                baseUri
+            )
         );
-        _markets[flightId] = market;
+        _threshold[flightId][strikeArrival] = market;
 
-        emit MarketCreated(flightId, market, delayThresholdMinutes);
+        emit MarketCreated(flightId, market, MarketKind.Threshold, strikeArrival);
     }
 
     function marketOf(bytes32 flightId) external view returns (address) {
-        return _markets[flightId];
+        return _protection[flightId];
+    }
+
+    function thresholdMarketOf(bytes32 flightId, uint64 strikeArrival)
+        external
+        view
+        returns (address)
+    {
+        return _threshold[flightId][strikeArrival];
     }
 
     function isListed(bytes32 flightId) external view returns (bool) {
-        return _markets[flightId] != address(0);
+        return _protection[flightId] != address(0);
     }
 }

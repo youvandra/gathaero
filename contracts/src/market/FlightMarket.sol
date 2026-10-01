@@ -9,7 +9,7 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.s
 
 import { IFlightOracle } from "../interfaces/IFlightOracle.sol";
 import { OutcomeToken } from "../tokens/OutcomeToken.sol";
-import { Outcome } from "../types/FlightTypes.sol";
+import { MarketKind, Outcome } from "../types/FlightTypes.sol";
 import {
     InsufficientLiquidity,
     InsufficientShares,
@@ -31,7 +31,10 @@ contract FlightMarket is IERC1155Receiver, ReentrancyGuard {
     OutcomeToken public immutable outcome;
 
     bytes32 public immutable flightId;
+    MarketKind public immutable kind;
     uint16 public immutable delayThresholdMinutes;
+    uint64 public immutable scheduledArrival;
+    uint64 public immutable strikeArrival;
 
     uint256 public totalShares;
     uint256 public lpCollateral;
@@ -50,7 +53,10 @@ contract FlightMarket is IERC1155Receiver, ReentrancyGuard {
         address collateral_,
         address oracle_,
         bytes32 flightId_,
+        MarketKind kind_,
         uint16 delayThresholdMinutes_,
+        uint64 scheduledArrival_,
+        uint64 strikeArrival_,
         string memory uri_
     ) {
         if (collateral_ == address(0) || oracle_ == address(0)) {
@@ -59,7 +65,10 @@ contract FlightMarket is IERC1155Receiver, ReentrancyGuard {
         collateral = IERC20(collateral_);
         oracle = IFlightOracle(oracle_);
         flightId = flightId_;
+        kind = kind_;
         delayThresholdMinutes = delayThresholdMinutes_;
+        scheduledArrival = scheduledArrival_;
+        strikeArrival = strikeArrival_;
         outcome = new OutcomeToken(address(this), uri_);
     }
 
@@ -133,10 +142,20 @@ contract FlightMarket is IERC1155Receiver, ReentrancyGuard {
         if (!finalized) revert ResolutionNotFinal();
 
         resolved = true;
-        winning =
-            delayMinutes > int32(uint32(delayThresholdMinutes)) ? Outcome.Delayed : Outcome.OnTime;
+        winning = _computeWinning(delayMinutes);
 
         emit Resolved(winning, delayMinutes);
+    }
+
+    function _computeWinning(int32 delayMinutes) private view returns (Outcome) {
+        if (kind == MarketKind.Protection) {
+            return
+                delayMinutes > int32(uint32(delayThresholdMinutes))
+                    ? Outcome.Delayed
+                    : Outcome.OnTime;
+        }
+        int64 actualArrival = int64(uint64(scheduledArrival)) + int64(delayMinutes) * 60;
+        return actualArrival <= int64(uint64(strikeArrival)) ? Outcome.OnTime : Outcome.Delayed;
     }
 
     function redeem() external nonReentrant returns (uint256 amountOut) {

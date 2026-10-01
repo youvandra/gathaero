@@ -18,9 +18,24 @@
         "internalType": "bytes32"
       },
       {
+        "name": "kind_",
+        "type": "uint8",
+        "internalType": "enum MarketKind"
+      },
+      {
         "name": "delayThresholdMinutes_",
         "type": "uint16",
         "internalType": "uint16"
+      },
+      {
+        "name": "scheduledArrival_",
+        "type": "uint64",
+        "internalType": "uint64"
+      },
+      {
+        "name": "strikeArrival_",
+        "type": "uint64",
+        "internalType": "uint64"
       },
       {
         "name": "uri_",
@@ -121,6 +136,19 @@
         "name": "",
         "type": "bytes32",
         "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "kind",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint8",
+        "internalType": "enum MarketKind"
       }
     ],
     "stateMutability": "view"
@@ -333,6 +361,19 @@
   },
   {
     "type": "function",
+    "name": "scheduledArrival",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "shares",
     "inputs": [
       {
@@ -346,6 +387,19 @@
         "name": "",
         "type": "uint256",
         "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "strikeArrival",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint64",
+        "internalType": "uint64"
       }
     ],
     "stateMutability": "view"

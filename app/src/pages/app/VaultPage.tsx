@@ -45,7 +45,7 @@ const COLUMNS: Column<Pool>[] = [
     cell: (row) => `${(row.utilisation * 100).toFixed(0)}%`,
   },
   { id: "exposure", header: "Exposure", numeric: true, sortBy: (row) => row.exposure, cell: (row) => `$${row.exposure.toLocaleString()}` },
-  { id: "action", header: "", align: "end", cell: () => <Button variant="secondary" size="sm">Deposit</Button> },
+  { id: "action", header: "", align: "end", cell: () => <Button variant="secondary" size="sm">Add</Button> },
 ];
 
 function CardTitle({ children }: { children: string }) {
@@ -107,13 +107,14 @@ export function VaultPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Provide liquidity</CardTitle>
+            <CardTitle>Add liquidity</CardTitle>
           </CardHeader>
           <CardBody>
             <div className="flex flex-col gap-3">
               <p style={{ margin: 0, color: "var(--cordon-copy)" }}>
-                Underwrite delay risk on a route and earn the premium. Withdraw any time
-                between flights.
+                Adding liquidity is how you underwrite the route — it is the same as
+                depositing into the pool. You earn the premium when flights land on time, and
+                can withdraw between flights.
               </p>
               <TextField
                 inputMode="decimal"
@@ -128,7 +129,7 @@ export function VaultPage() {
                 disabled={!isConnected || !market || isPending}
                 onClick={handleDeposit}
               >
-                {isPending ? "Depositing…" : "Deposit"}
+                {isPending ? "Adding…" : "Add liquidity"}
               </Button>
             </div>
           </CardBody>
