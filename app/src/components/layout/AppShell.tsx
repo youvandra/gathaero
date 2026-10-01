@@ -21,7 +21,10 @@ function Brand() {
 function TopBar() {
   return (
     <header className="sticky top-0 z-20 flex items-center justify-between gap-4 border-b border-white/10 bg-black/40 px-5 py-4 backdrop-blur-xl sm:px-7">
-      <Brand />
+      <span className="md:hidden">
+        <Brand />
+      </span>
+      <span className="hidden md:block" />
       <WalletButton />
     </header>
   );
