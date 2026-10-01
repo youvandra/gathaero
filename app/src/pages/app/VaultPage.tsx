@@ -1,4 +1,14 @@
-import { Button, Card, CardBody, CardHeader, DataTable, LineChart, TextField } from "cordon-ui";
+import {
+  Button,
+  Card,
+  CardBody,
+  CardHeader,
+  DataTable,
+  LineChart,
+  Modal,
+  TextField,
+  useToast,
+} from "cordon-ui";
 import type { Column } from "cordon-ui";
 import { useState } from "react";
 import { parseUnits } from "viem";
@@ -30,20 +40,8 @@ const POOLS: Pool[] = [
 const COLUMNS: Column<Pool>[] = [
   { id: "route", header: "Route", sortBy: (row) => row.route, cell: (row) => <strong style={{ color: "var(--cordon-ink)" }}>{row.route}</strong> },
   { id: "tvl", header: "TVL", numeric: true, sortBy: (row) => row.tvl, cell: (row) => `$${row.tvl.toLocaleString()}` },
-  {
-    id: "apy",
-    header: "APY",
-    numeric: true,
-    sortBy: (row) => row.apy,
-    cell: (row) => <span style={{ color: "var(--cordon-positive)" }}>{row.apy.toFixed(1)}%</span>,
-  },
-  {
-    id: "utilisation",
-    header: "Utilisation",
-    numeric: true,
-    sortBy: (row) => row.utilisation,
-    cell: (row) => `${(row.utilisation * 100).toFixed(0)}%`,
-  },
+  { id: "apy", header: "APY", numeric: true, sortBy: (row) => row.apy, cell: (row) => <span style={{ color: "var(--cordon-positive)" }}>{row.apy.toFixed(1)}%</span> },
+  { id: "utilisation", header: "Utilisation", numeric: true, sortBy: (row) => row.utilisation, cell: (row) => `${(row.utilisation * 100).toFixed(0)}%` },
   { id: "exposure", header: "Exposure", numeric: true, sortBy: (row) => row.exposure, cell: (row) => `$${row.exposure.toLocaleString()}` },
   { id: "action", header: "", align: "end", cell: () => <Button variant="secondary" size="sm">Add</Button> },
 ];
@@ -57,8 +55,10 @@ function CardTitle({ children }: { children: string }) {
 }
 
 export function VaultPage() {
-  const [amount, setAmount] = useState("");
+  const { notify } = useToast();
   const { isConnected } = useAccount();
+  const [amount, setAmount] = useState("");
+  const [addOpen, setAddOpen] = useState(false);
 
   const flightId = flightIdOf(DEFAULT_FLIGHT.number, DEFAULT_FLIGHT.date);
   const market = useMarketAddress(flightId);
@@ -68,10 +68,27 @@ export function VaultPage() {
   const tvl = state.reserves ? Number(state.reserves[0] + state.reserves[1]) / 1e6 : 24_800;
   const exposure = state.reserves ? Number(state.reserves[1]) / 1e6 : 12_400;
 
-  const handleDeposit = () => {
+  const confirmAdd = async () => {
     const parsed = parseUnits(amount || "0", 6);
-    if (parsed > 0n) {
-      void addLiquidity(parsed);
+    if (parsed <= 0n) {
+      notify({ tone: "caution", title: "Enter an amount first" });
+      return;
+    }
+    try {
+      await addLiquidity(parsed);
+      notify({
+        tone: "positive",
+        title: "Liquidity added",
+        children: `${amount} USDC on SIN → CGK`,
+      });
+      setAddOpen(false);
+      setAmount("");
+    } catch (error) {
+      notify({
+        tone: "critical",
+        title: "Could not add liquidity",
+        children: error instanceof Error ? error.message : "Try again",
+      });
     }
   };
 
@@ -112,24 +129,16 @@ export function VaultPage() {
           <CardBody>
             <div className="flex flex-col gap-3">
               <p style={{ margin: 0, color: "var(--cordon-copy)" }}>
-                Adding liquidity is how you underwrite the route — it is the same as
-                depositing into the pool. You earn the premium when flights land on time, and
-                can withdraw between flights.
+                Adding liquidity is how you underwrite the route — the same as depositing
+                into the pool. You earn the premium when flights land on time.
               </p>
-              <TextField
-                inputMode="decimal"
-                prefix="USDC"
-                placeholder="Amount"
-                value={amount}
-                onChange={(event) => setAmount(event.target.value)}
-              />
               <Button
                 variant="primary"
                 block
-                disabled={!isConnected || !market || isPending}
-                onClick={handleDeposit}
+                disabled={!isConnected || !market}
+                onClick={() => setAddOpen(true)}
               >
-                {isPending ? "Adding…" : "Add liquidity"}
+                Add liquidity
               </Button>
             </div>
           </CardBody>
@@ -142,6 +151,36 @@ export function VaultPage() {
         </CardHeader>
         <DataTable columns={COLUMNS} rows={POOLS} rowKey={(row) => row.route} density="default" stickyHeader={false} />
       </Card>
+
+      <Modal
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        title="Add liquidity"
+        description="SIN → CGK vault"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setAddOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="primary" loading={isPending} onClick={confirmAdd}>
+              Confirm
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-3">
+          <TextField
+            inputMode="decimal"
+            prefix="USDC"
+            placeholder="Amount"
+            value={amount}
+            onChange={(event) => setAmount(event.target.value)}
+          />
+          <p style={{ margin: 0, color: "var(--cordon-copy-dim)", fontSize: "var(--cordon-size-caption)" }}>
+            You can withdraw between flights.
+          </p>
+        </div>
+      </Modal>
     </>
   );
 }

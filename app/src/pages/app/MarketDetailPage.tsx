@@ -5,9 +5,11 @@ import {
   CardBody,
   CardHeader,
   LineChart,
+  Modal,
   Segmented,
   Tag,
   TextField,
+  useToast,
 } from "cordon-ui";
 import type { ReactNode } from "react";
 import { useState } from "react";
@@ -52,9 +54,11 @@ export function MarketDetailPage() {
   const navigate = useNavigate();
   const { code } = useParams<{ code: string }>();
   const market = findMarket(code ?? DEFAULT_MARKET_CODE);
+  const { notify } = useToast();
 
   const { isConnected } = useAccount();
   const [tab, setTab] = useState<Tab>("protection");
+  const [buyOpen, setBuyOpen] = useState(false);
   const [amount, setAmount] = useState("6.20");
 
   const onChain = market.code === DEFAULT_MARKET_CODE;
@@ -70,17 +74,40 @@ export function MarketDetailPage() {
   const premium = Number(amount) || 0;
   const payout = probability > 0 ? premium / probability : 0;
 
-  const buyAmount = () => {
+  const confirmBuy = async () => {
     const parsed = parseUnits(amount || "0", 6);
-    if (parsed > 0n && marketAddress) {
-      void buy(parsed);
+    if (parsed <= 0n) {
+      notify({ tone: "caution", title: "Enter an amount first" });
+      return;
+    }
+    try {
+      await buy(parsed);
+      notify({
+        tone: "positive",
+        title: "Protection submitted",
+        children: `${amount} USDC on ${market.code}`,
+      });
+      setBuyOpen(false);
+    } catch (error) {
+      notify({
+        tone: "critical",
+        title: "Could not buy protection",
+        children: error instanceof Error ? error.message : "Try again",
+      });
     }
   };
 
   return (
     <>
       <div className="flex items-center gap-2">
-        <Button variant="ghost" size="sm" iconOnly iconStart="chevron-left" aria-label="Back to markets" onClick={() => navigate("/app/market")} />
+        <Button
+          variant="ghost"
+          size="sm"
+          iconOnly
+          iconStart="chevron-left"
+          aria-label="Back to markets"
+          onClick={() => navigate("/app/market")}
+        />
         <span style={{ color: "var(--cordon-copy-dim)", fontSize: "var(--cordon-size-caption)" }}>
           Markets
         </span>
@@ -112,27 +139,30 @@ export function MarketDetailPage() {
               <ProbabilityPanel probability={probability} />
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-2">
-                  <TextField
-                    inputMode="decimal"
-                    prefix="USDC"
-                    value={amount}
-                    onChange={(event) => setAmount(event.target.value)}
+                  <Row label="Premium" value={`${market.premium.toFixed(2)} per 100`} />
+                  <Row
+                    label="Pays if delayed"
+                    value={probability > 0 ? `${(1 / probability).toFixed(1)}x` : "—"}
                   />
-                  <Row label="Pay" value={`${formatUsdc(parseUnits(amount || "0", 6))} USDC`} />
-                  <Row label="Pays if delayed" value={`~${payout.toFixed(0)} USDC`} />
                   <Row label="Buy window" value="closes at landing" />
                 </div>
                 <Button
                   variant="primary"
                   block
-                  disabled={!isConnected || !marketAddress || isPending}
-                  onClick={buyAmount}
+                  disabled={!isConnected || !marketAddress}
+                  onClick={() => setBuyOpen(true)}
                 >
-                  {isPending ? "Buying…" : "Buy protection"}
+                  Buy protection
                 </Button>
-                <p style={{ margin: 0, color: "var(--cordon-copy-dim)", fontSize: "var(--cordon-size-caption)" }}>
-                  A hedge, not a bet. It pays when the flight is delayed past the threshold and
-                  locks the moment the flight lands or the delay is announced.
+                <p
+                  style={{
+                    margin: 0,
+                    color: "var(--cordon-copy-dim)",
+                    fontSize: "var(--cordon-size-caption)",
+                  }}
+                >
+                  A hedge, not a bet. It pays when the flight is delayed past the threshold
+                  and locks the moment the flight lands or the delay is announced.
                 </p>
               </div>
             </div>
@@ -159,9 +189,15 @@ export function MarketDetailPage() {
                 date={market.isoDate}
                 buckets={market.buckets}
               />
-              <p style={{ margin: 0, color: "var(--cordon-copy-dim)", fontSize: "var(--cordon-size-caption)" }}>
-                Trade the actual landing time against a strike. Positions stay open and
-                tradeable until the wheels touch down.
+              <p
+                style={{
+                  margin: 0,
+                  color: "var(--cordon-copy-dim)",
+                  fontSize: "var(--cordon-size-caption)",
+                }}
+              >
+                Each row is a window for the actual touchdown time. Yes pays if the flight
+                lands inside it; positions stay tradeable until the wheels touch down.
               </p>
             </div>
           )}
@@ -175,7 +211,9 @@ export function MarketDetailPage() {
           </CardHeader>
           <div className="px-5 pb-5">
             <LineChart
-              series={[{ id: "prob", values: market.history.map((value) => value / 100), glaze: "ember" }]}
+              series={[
+                { id: "prob", values: market.history.map((value) => value / 100), glaze: "ember" },
+              ]}
               height={180}
               format={(value) => `${(value * 100).toFixed(0)}%`}
               label="Delay probability"
@@ -194,6 +232,35 @@ export function MarketDetailPage() {
           </CardBody>
         </Card>
       </div>
+
+      <Modal
+        open={buyOpen}
+        onClose={() => setBuyOpen(false)}
+        title="Buy protection"
+        description={`${market.code} · ${market.route} · ${market.date}`}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setBuyOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="primary" loading={isPending} onClick={confirmBuy}>
+              Confirm
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-3">
+          <TextField
+            inputMode="decimal"
+            prefix="USDC"
+            value={amount}
+            onChange={(event) => setAmount(event.target.value)}
+          />
+          <Row label="You pay" value={`${formatUsdc(parseUnits(amount || "0", 6))} USDC`} />
+          <Row label="Pays if delayed" value={`~${payout.toFixed(0)} USDC`} />
+          <Row label="Implied delay" value={`${(probability * 100).toFixed(1)}%`} />
+        </div>
+      </Modal>
     </>
   );
 }

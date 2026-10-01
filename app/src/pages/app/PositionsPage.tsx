@@ -1,4 +1,4 @@
-import { Button, Card, CardHeader, DataTable, Tag } from "cordon-ui";
+import { Button, Card, CardHeader, DataTable, Tag, useToast } from "cordon-ui";
 import type { Column, TagTone } from "cordon-ui";
 
 import { StatTile } from "../../features/dashboard/StatTile";
@@ -33,7 +33,8 @@ const STATUS_TONE: Record<PosStatus, TagTone> = {
   resolved: "positive",
 };
 
-const COLUMNS: Column<Position>[] = [
+function buildColumns(onAction: (row: Position) => void): Column<Position>[] {
+  return [
   {
     id: "flight",
     header: "Flight",
@@ -94,15 +95,39 @@ const COLUMNS: Column<Position>[] = [
     header: "",
     align: "end",
     cell: (row) => (
-      <Button variant={row.status === "delayed" ? "primary" : "secondary"} size="sm">
+      <Button
+        variant={row.status === "delayed" ? "primary" : "secondary"}
+        size="sm"
+        onClick={() => onAction(row)}
+      >
         {row.status === "delayed" ? "Claim" : "Sell"}
       </Button>
     ),
   },
-];
+  ];
+}
 
 export function PositionsPage() {
+  const { notify } = useToast();
   const totalPnl = POSITIONS.reduce((sum, position) => sum + position.pnl, 0);
+
+  const handleAction = (row: Position) => {
+    if (row.status === "delayed") {
+      notify({
+        tone: "positive",
+        title: "Claim submitted",
+        children: `${row.flight} · $${row.size}`,
+      });
+    } else {
+      notify({
+        tone: "info",
+        title: "Secondary market coming soon",
+        children: `Position ${row.flight}`,
+      });
+    }
+  };
+
+  const columns = buildColumns(handleAction);
 
   return (
     <>
@@ -120,7 +145,7 @@ export function PositionsPage() {
           </h2>
         </CardHeader>
         <DataTable
-          columns={COLUMNS}
+          columns={columns}
           rows={POSITIONS}
           rowKey={(row) => row.id}
           density="default"

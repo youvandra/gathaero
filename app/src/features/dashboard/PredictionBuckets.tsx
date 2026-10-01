@@ -1,4 +1,4 @@
-import { Button, TextField } from "cordon-ui";
+import { Button, TextField, useToast } from "cordon-ui";
 import { useState } from "react";
 import { parseUnits } from "viem";
 import { useAccount } from "wagmi";
@@ -26,6 +26,7 @@ function BucketRow({
   amount: string;
 }) {
   const { isConnected } = useAccount();
+  const { notify } = useToast();
   const address = useRangeMarketAddress(
     flightId,
     strikeTimestamp(date, bucket.from),
@@ -39,10 +40,25 @@ function BucketRow({
     live && state.probability !== undefined ? 1 - Number(state.probability) / 1e18 : bucket.yes;
   const no = 1 - yes;
 
-  const trade = (outcome: number) => {
+  const trade = async (outcome: number) => {
     const parsed = parseUnits(amount || "0", 6);
-    if (parsed > 0n) {
-      void buyOutcome(outcome, parsed);
+    if (parsed <= 0n) {
+      notify({ tone: "caution", title: "Enter a stake first" });
+      return;
+    }
+    try {
+      await buyOutcome(outcome, parsed);
+      notify({
+        tone: "positive",
+        title: outcome === ON_TIME_OUTCOME ? "Prediction placed · Yes" : "Prediction placed · No",
+        children: `${amount} USDC · lands ${bucket.from}–${bucket.to}`,
+      });
+    } catch (error) {
+      notify({
+        tone: "critical",
+        title: "Could not place prediction",
+        children: error instanceof Error ? error.message : "Try again",
+      });
     }
   };
 
@@ -69,7 +85,9 @@ function BucketRow({
         variant="secondary"
         size="sm"
         disabled={!isConnected || !address || isPending}
-        onClick={() => trade(ON_TIME_OUTCOME)}
+        onClick={() => {
+          void trade(ON_TIME_OUTCOME);
+        }}
       >
         Yes {(yes * 100).toFixed(0)}¢
       </Button>
@@ -77,7 +95,9 @@ function BucketRow({
         variant="ghost"
         size="sm"
         disabled={!isConnected || !address || isPending}
-        onClick={() => trade(DELAYED_OUTCOME)}
+        onClick={() => {
+          void trade(DELAYED_OUTCOME);
+        }}
       >
         No {(no * 100).toFixed(0)}¢
       </Button>
