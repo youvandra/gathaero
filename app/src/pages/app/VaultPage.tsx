@@ -139,7 +139,7 @@ export function VaultPage() {
         <CardHeader>
           <CardTitle>Route pools</CardTitle>
         </CardHeader>
-        <DataTable columns={COLUMNS} rows={POOLS} rowKey={(row) => row.route} density="compact" stickyHeader={false} />
+        <DataTable columns={COLUMNS} rows={POOLS} rowKey={(row) => row.route} density="default" stickyHeader={false} />
       </Card>
     </>
   );

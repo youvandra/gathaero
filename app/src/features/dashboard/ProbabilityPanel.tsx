@@ -1,24 +1,39 @@
-import { DotText, Gauge, Surface } from "cordon-ui";
+import { Surface } from "cordon-ui";
 
 export function ProbabilityPanel({ probability }: { probability: number }) {
   const onTime = 1 - probability;
 
+  const readout = (
+    <span className="flex items-baseline gap-1" style={{ color: "var(--cordon-on-glaze)" }}>
+      <span
+        style={{
+          fontSize: "clamp(2.5rem, 12cqw, 3.75rem)",
+          fontWeight: 700,
+          lineHeight: 1,
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        {(probability * 100).toFixed(1)}
+      </span>
+      <span style={{ fontSize: "1.25rem", fontWeight: 600 }}>%</span>
+    </span>
+  );
+
   return (
-    <Surface
-      glaze="ember"
-      radius="5"
-      elevation="tile"
-      className="flex flex-col items-center gap-5 p-6"
-    >
-      <Gauge value={probability} size="min(300px, 100%)" footnote="Chance of delay">
+    <Surface glaze="ember" radius="5" elevation="tile" className="flex flex-col items-center gap-5 p-6">
+      <div className="flex flex-col items-center gap-1" style={{ containerType: "inline-size" }}>
+        {readout}
         <span
-          className="inline-flex items-baseline gap-1"
-          style={{ color: "var(--cordon-on-glaze)" }}
+          style={{
+            color: "var(--cordon-on-glaze-dim)",
+            fontSize: "var(--cordon-size-micro)",
+            textTransform: "uppercase",
+            letterSpacing: "0.08em",
+          }}
         >
-          <DotText radius={2.4}>{(probability * 100).toFixed(1)}</DotText>
-          <span style={{ fontSize: "0.5em", fontWeight: 600 }}>%</span>
+          Chance of delay
         </span>
-      </Gauge>
+      </div>
 
       <div className="grid w-full grid-cols-2 gap-3">
         <div
@@ -35,13 +50,7 @@ export function ProbabilityPanel({ probability }: { probability: number }) {
           >
             On-time
           </span>
-          <span
-            style={{
-              color: "var(--cordon-on-glaze)",
-              fontWeight: 600,
-              fontVariantNumeric: "tabular-nums",
-            }}
-          >
+          <span style={{ color: "var(--cordon-on-glaze)", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
             {(onTime * 100).toFixed(1)}%
           </span>
         </div>
@@ -59,13 +68,7 @@ export function ProbabilityPanel({ probability }: { probability: number }) {
           >
             Delayed
           </span>
-          <span
-            style={{
-              color: "var(--cordon-on-glaze)",
-              fontWeight: 600,
-              fontVariantNumeric: "tabular-nums",
-            }}
-          >
+          <span style={{ color: "var(--cordon-on-glaze)", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
             {(probability * 100).toFixed(1)}%
           </span>
         </div>

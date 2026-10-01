@@ -11,6 +11,7 @@ import {
 } from "cordon-ui";
 import type { ReactNode } from "react";
 import { useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { parseUnits } from "viem";
 import { useAccount } from "wagmi";
 
@@ -48,34 +49,44 @@ function Row({ label, value }: { label: string; value: ReactNode }) {
   );
 }
 
-export function MarketPage() {
+export function MarketDetailPage() {
+  const navigate = useNavigate();
+  const { code } = useParams<{ code: string }>();
+  const market = findMarket(code ?? DEFAULT_MARKET_CODE);
+
   const { isConnected } = useAccount();
   const [tab, setTab] = useState<Tab>("protection");
   const [amount, setAmount] = useState("6.20");
 
-  const market = findMarket(DEFAULT_MARKET_CODE);
+  const onChain = market.code === DEFAULT_MARKET_CODE;
   const flightId = flightIdOf(DEFAULT_FLIGHT.number, DEFAULT_FLIGHT.date);
   const marketAddress = useMarketAddress(flightId);
   const state = useMarketState(marketAddress);
   const { buy, isPending } = useBuyProtection(marketAddress);
 
-  const live = isConfigured && Boolean(marketAddress);
-  const probability = state.probability
-    ? Number(state.probability) / 1e18
-    : market.delayProbability;
+  const live = onChain && isConfigured && Boolean(marketAddress);
+  const probability =
+    live && state.probability ? Number(state.probability) / 1e18 : market.delayProbability;
 
   const premium = Number(amount) || 0;
   const payout = probability > 0 ? premium / probability : 0;
 
   const buyAmount = () => {
     const parsed = parseUnits(amount || "0", 6);
-    if (parsed > 0n) {
+    if (parsed > 0n && marketAddress) {
       void buy(parsed);
     }
   };
 
   return (
     <>
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="sm" iconOnly iconStart="chevron-left" aria-label="Back to markets" onClick={() => navigate("/app/market")} />
+        <span style={{ color: "var(--cordon-copy-dim)", fontSize: "var(--cordon-size-caption)" }}>
+          Markets
+        </span>
+      </div>
+
       <Card>
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -120,15 +131,9 @@ export function MarketPage() {
                 >
                   {isPending ? "Buying…" : "Buy protection"}
                 </Button>
-                <p
-                  style={{
-                    margin: 0,
-                    color: "var(--cordon-copy-dim)",
-                    fontSize: "var(--cordon-size-caption)",
-                  }}
-                >
-                  A hedge, not a bet. It pays when the flight is delayed past the threshold
-                  and locks the moment the flight lands or the delay is announced.
+                <p style={{ margin: 0, color: "var(--cordon-copy-dim)", fontSize: "var(--cordon-size-caption)" }}>
+                  A hedge, not a bet. It pays when the flight is delayed past the threshold and
+                  locks the moment the flight lands or the delay is announced.
                 </p>
               </div>
             </div>
@@ -151,13 +156,7 @@ export function MarketPage() {
                 label="Arrival distribution"
               />
               <StrikeLadder strikes={market.strikes} />
-              <p
-                style={{
-                  margin: 0,
-                  color: "var(--cordon-copy-dim)",
-                  fontSize: "var(--cordon-size-caption)",
-                }}
-              >
+              <p style={{ margin: 0, color: "var(--cordon-copy-dim)", fontSize: "var(--cordon-size-caption)" }}>
                 Trade the actual landing time against a strike. Positions stay open and
                 tradeable until the wheels touch down.
               </p>
@@ -173,9 +172,7 @@ export function MarketPage() {
           </CardHeader>
           <div className="px-5 pb-5">
             <LineChart
-              series={[
-                { id: "prob", values: market.history.map((value) => value / 100), glaze: "ember" },
-              ]}
+              series={[{ id: "prob", values: market.history.map((value) => value / 100), glaze: "ember" }]}
               height={180}
               format={(value) => `${(value * 100).toFixed(0)}%`}
               label="Delay probability"
@@ -184,13 +181,13 @@ export function MarketPage() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Market</CardTitle>
+            <CardTitle>Details</CardTitle>
           </CardHeader>
           <CardBody>
             <Row label="Delay threshold" value="> 2h" />
             <Row label="Premium" value={`${market.premium.toFixed(2)} / 100`} />
             <Row label="Volume" value={`$${market.volume.toLocaleString()}`} />
-            <Row label="Status" value={state.resolved ? "Resolved" : "Open"} />
+            <Row label="Status" value={market.status} />
           </CardBody>
         </Card>
       </div>

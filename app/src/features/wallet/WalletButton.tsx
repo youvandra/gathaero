@@ -10,9 +10,21 @@ export function WalletButton() {
 
   if (isConnected && address) {
     return (
-      <Button variant="secondary" size="sm" onClick={() => disconnect()}>
-        {shortenAddress(address)}
-      </Button>
+      <div className="flex items-center gap-2">
+        <span
+          className="rounded-full border px-3 py-1.5 text-sm"
+          style={{
+            borderColor: "var(--cordon-hairline)",
+            color: "var(--cordon-ink)",
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >
+          {shortenAddress(address)}
+        </span>
+        <Button variant="ghost" size="sm" onClick={() => disconnect()}>
+          Disconnect
+        </Button>
+      </div>
     );
   }
 
@@ -26,7 +38,7 @@ export function WalletButton() {
       disabled={!connector}
       onClick={() => connector && connect({ connector })}
     >
-      Connect
+      Connect Wallet
     </Button>
   );
 }

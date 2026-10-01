@@ -86,7 +86,7 @@ export function MarketTable({
       columns={COLUMNS}
       rows={rows}
       rowKey={(row) => row.code}
-      density="compact"
+      density="default"
       stickyHeader={false}
       onRowClick={onSelect}
     />

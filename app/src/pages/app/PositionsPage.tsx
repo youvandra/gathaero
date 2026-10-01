@@ -123,7 +123,7 @@ export function PositionsPage() {
           columns={COLUMNS}
           rows={POSITIONS}
           rowKey={(row) => row.id}
-          density="compact"
+          density="default"
           stickyHeader={false}
         />
       </Card>

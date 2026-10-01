@@ -54,7 +54,7 @@ export function StrikeLadder({ strikes }: { strikes: Strike[] }) {
       columns={COLUMNS}
       rows={strikes}
       rowKey={(row) => row.time}
-      density="compact"
+      density="default"
       stickyHeader={false}
     />
   );

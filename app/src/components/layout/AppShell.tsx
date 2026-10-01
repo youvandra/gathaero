@@ -7,7 +7,7 @@ import { WalletButton } from "../../features/wallet/WalletButton";
 
 const APP_NAV: { to: string; label: string; icon: IconName; end: boolean }[] = [
   { to: "/app", label: "Home", icon: "home", end: true },
-  { to: "/app/market", label: "Market", icon: "bolt", end: false },
+  { to: "/app/market", label: "Markets", icon: "bolt", end: false },
   { to: "/app/positions", label: "Positions", icon: "layers", end: false },
   { to: "/app/vault", label: "Vault", icon: "star", end: false },
 ];

@@ -47,7 +47,7 @@ const STATS = [
 
 export function HomePage() {
   const navigate = useNavigate();
-  const openMarket = () => navigate("/app/market");
+  const openDetail = (code: string) => navigate(`/app/market/${code}`);
 
   const movers = [...MOCK_MARKETS]
     .sort(
@@ -59,7 +59,7 @@ export function HomePage() {
 
   return (
     <>
-      <HeroSearch onSearch={openMarket} />
+      <HeroSearch onSearch={(code) => openDetail(code)} />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {STATS.map((stat) => (
@@ -72,12 +72,17 @@ export function HomePage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>Live markets</CardTitle>
-              <Button variant="ghost" size="sm" iconEnd="arrow-right" onClick={openMarket}>
-                All
+              <Button
+                variant="ghost"
+                size="sm"
+                iconEnd="arrow-right"
+                onClick={() => navigate("/app/market")}
+              >
+                All markets
               </Button>
             </div>
           </CardHeader>
-          <MarketTable rows={MOCK_MARKETS} onSelect={openMarket} />
+          <MarketTable rows={MOCK_MARKETS} onSelect={(market) => openDetail(market.code)} />
         </Card>
 
         <div className="flex flex-col gap-5">
@@ -103,7 +108,7 @@ export function HomePage() {
               <button
                 key={market.code}
                 type="button"
-                onClick={openMarket}
+                onClick={() => openDetail(market.code)}
                 className="flex items-center justify-between border-b px-5 py-3 text-left transition-colors last:border-b-0 hover:bg-black/[0.03]"
                 style={{ borderColor: "var(--cordon-hairline-soft)" }}
               >
