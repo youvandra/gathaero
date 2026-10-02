@@ -27,4 +27,5 @@ cd feeder    && npm install && npm run start
 cd cre       && see README
 ```
 
-See `AGENTS.md` for conventions and `docs/spec.md` for the product spec.
+See `AGENTS.md` for conventions, `docs/spec.md` for the product spec, and
+`docs/STATUS.md` for the current build status and handoff.
