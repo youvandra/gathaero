@@ -125,3 +125,15 @@ Responsive: sidebar di desktop, bottom-nav di mobile. Video hero ala nexum + gla
 - Track/bounty persis Arbitrum Open House (cek di HackQuest).
 - CRE: Arbitrum Sepolia di-enable untuk tenant kita?
 - API key AeroDataBox (RapidAPI) udah ada?
+
+## 15. Regulasi, Insurable Interest & Force Majeure
+- **Protection** = asuransi/hedge → wajib **insurable interest**: hanya penumpang flight itu
+  yang boleh beli (UI: ticket-gate / boarding pass).
+- **Prediction (ATA bucket)** = judi/event-contract → venue terpisah, butuh lisensi
+  (CFTC/remote-gambling). Bukan inti MVP.
+- **Force majeure** (airline insolvency, airspace closure, perang, grounding pemerintah,
+  pandemi) → **void & unwind**: refund premium ke buyer, principal balik ke LP, tanpa payout.
+  Kontrak: `resolveVoid()` (resolver), `refund()` (dari `contributions`), `removeLiquidity`
+  pakai `lpCollateral`. Conservation: `lpCollateral + Σcontributions = total collateral`.
+- **Cancel biasa** (cuaca/ops) tetap **covered** (payout).
+- Proses: definisi eksplisit di terms + determination window + bond (dispute) + pause buy.

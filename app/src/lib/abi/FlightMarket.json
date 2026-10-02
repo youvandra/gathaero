@@ -13,6 +13,11 @@
         "internalType": "address"
       },
       {
+        "name": "resolver_",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
         "name": "flightId_",
         "type": "bytes32",
         "internalType": "bytes32"
@@ -126,6 +131,25 @@
   },
   {
     "type": "function",
+    "name": "contributions",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "delayThresholdMinutes",
     "inputs": [],
     "outputs": [
@@ -146,6 +170,19 @@
         "name": "",
         "type": "bytes32",
         "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "isOpen",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
       }
     ],
     "stateMutability": "view"
@@ -327,6 +364,19 @@
   },
   {
     "type": "function",
+    "name": "refund",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "amountOut",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "removeLiquidity",
     "inputs": [
       {
@@ -371,6 +421,13 @@
   },
   {
     "type": "function",
+    "name": "resolveVoid",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "resolved",
     "inputs": [],
     "outputs": [
@@ -378,6 +435,19 @@
         "name": "",
         "type": "bool",
         "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "resolver",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "stateMutability": "view"
@@ -468,6 +538,19 @@
         "name": "",
         "type": "uint64",
         "internalType": "uint64"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "voided",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
       }
     ],
     "stateMutability": "view"
@@ -593,6 +676,25 @@
   },
   {
     "type": "event",
+    "name": "Refunded",
+    "inputs": [
+      {
+        "name": "holder",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "amountOut",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "Resolved",
     "inputs": [
       {
@@ -608,6 +710,12 @@
         "internalType": "int32"
       }
     ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "Voided",
+    "inputs": [],
     "anonymous": false
   },
   {
@@ -655,6 +763,11 @@
         "internalType": "address"
       }
     ]
+  },
+  {
+    "type": "error",
+    "name": "Unauthorized",
+    "inputs": []
   },
   {
     "type": "error",

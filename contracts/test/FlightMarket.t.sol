@@ -198,6 +198,28 @@ contract FlightMarketTest is Test {
         assertEq(uint256(outRange.winning()), uint256(Outcome.Delayed));
     }
 
+    function testVoidRefundsBuyerAndLp() public {
+        vm.prank(lp);
+        uint256 lpShares = market.addLiquidity(1_000 * UNIT);
+        vm.prank(trader);
+        market.buy(Outcome.Delayed, 100 * UNIT);
+
+        market.resolveVoid();
+        assertTrue(market.voided());
+
+        uint256 traderBefore = usdc.balanceOf(trader);
+        vm.prank(trader);
+        uint256 refunded = market.refund();
+        assertEq(refunded, 100 * UNIT);
+        assertEq(usdc.balanceOf(trader), traderBefore + 100 * UNIT);
+
+        uint256 lpBefore = usdc.balanceOf(lp);
+        vm.prank(lp);
+        uint256 out = market.removeLiquidity(lpShares);
+        assertEq(out, 1_000 * UNIT);
+        assertEq(usdc.balanceOf(lp), lpBefore + 1_000 * UNIT);
+    }
+
     function testThresholdMarketsResolveByArrival() public {
         FlightMarket landsBy =
             FlightMarket(factory.createThreshold(flightId, scheduledArrival + 30 minutes));

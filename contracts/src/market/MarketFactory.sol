@@ -54,6 +54,7 @@ contract MarketFactory is Ownable {
             new FlightMarket(
                 collateral,
                 address(oracle),
+                owner(),
                 flightId,
                 MarketKind.Protection,
                 flight.delayThresholdMinutes,
@@ -81,6 +82,7 @@ contract MarketFactory is Ownable {
             new FlightMarket(
                 collateral,
                 address(oracle),
+                owner(),
                 flightId,
                 MarketKind.Threshold,
                 flight.delayThresholdMinutes,
@@ -110,6 +112,7 @@ contract MarketFactory is Ownable {
             new FlightMarket(
                 collateral,
                 address(oracle),
+                owner(),
                 flightId,
                 MarketKind.Range,
                 flight.delayThresholdMinutes,

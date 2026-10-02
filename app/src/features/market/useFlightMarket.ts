@@ -60,10 +60,18 @@ export function useMarketState(market?: Address) {
     query: { enabled },
   });
 
+  const voided = useReadContract({
+    address: market,
+    abi: flightMarketAbi,
+    functionName: "voided",
+    query: { enabled },
+  });
+
   return {
     reserves: reserves.data as readonly [bigint, bigint] | undefined,
     probability: probability.data as bigint | undefined,
     resolved: resolved.data as boolean | undefined,
+    voided: voided.data as boolean | undefined,
     isLoading: reserves.isLoading || probability.isLoading,
   };
 }
@@ -131,4 +139,20 @@ export function useBuyOutcome(market?: Address) {
   };
 
   return { buyOutcome, isPending };
+}
+
+export function useRefund(market?: Address) {
+  const { writeContractAsync, isPending } = useWriteContract();
+
+  const refund = () => {
+    if (!market) throw new Error("Market not configured");
+    return writeContractAsync({
+      address: market,
+      abi: flightMarketAbi,
+      functionName: "refund",
+      args: [],
+    });
+  };
+
+  return { refund, isPending };
 }

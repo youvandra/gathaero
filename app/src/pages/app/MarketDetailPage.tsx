@@ -26,6 +26,7 @@ import {
   useBuyProtection,
   useMarketAddress,
   useMarketState,
+  useRefund,
 } from "../../features/market/useFlightMarket";
 import { useBoardingPass } from "../../features/market/useBoardingPass";
 import { formatUsdc } from "../../lib/format";
@@ -72,8 +73,10 @@ export function MarketDetailPage() {
   const marketAddress = useMarketAddress(flightId);
   const state = useMarketState(marketAddress);
   const { buy, isPending } = useBuyProtection(marketAddress);
+  const { refund, isPending: refundPending } = useRefund(marketAddress);
 
   const live = onChain && isConfigured && Boolean(marketAddress);
+  const voided = Boolean(state.voided);
   const probability =
     live && state.probability ? Number(state.probability) / 1e18 : market.delayProbability;
 
@@ -117,6 +120,23 @@ export function MarketDetailPage() {
     setPassOpen(false);
   };
 
+  const confirmRefund = async () => {
+    try {
+      await refund();
+      notify({
+        tone: "positive",
+        title: "Refund submitted",
+        children: `${market.code} · force-majeure unwind`,
+      });
+    } catch (error) {
+      notify({
+        tone: "critical",
+        title: "Could not refund",
+        children: error instanceof Error ? error.message : "Try again",
+      });
+    }
+  };
+
   return (
     <>
       <div className="flex items-center gap-2">
@@ -138,8 +158,8 @@ export function MarketDetailPage() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <CardTitle>{`${market.code} · ${market.route}`}</CardTitle>
-              <Tag tone={live ? "positive" : "neutral"} dot>
-                {live ? "Live" : "Demo"}
+              <Tag tone={voided ? "critical" : live ? "positive" : "neutral"} dot>
+                {voided ? "Voided" : live ? "Live" : "Demo"}
               </Tag>
             </div>
             <Segmented
@@ -166,7 +186,39 @@ export function MarketDetailPage() {
                   />
                   <Row label="Buy window" value="closes at landing" />
                 </div>
-                {verified ? (
+                {voided ? (
+                  <div
+                    className="flex flex-col gap-3 rounded-[var(--cordon-radius-3)] border p-4"
+                    style={{
+                      borderColor: "var(--cordon-hairline)",
+                      background: "var(--cordon-paper-raised)",
+                    }}
+                  >
+                    <span style={{ color: "var(--cordon-critical)", fontWeight: 600 }}>
+                      Market voided · force majeure
+                    </span>
+                    <span
+                      style={{
+                        color: "var(--cordon-copy)",
+                        fontSize: "var(--cordon-size-caption)",
+                      }}
+                    >
+                      The event could not be settled. Premiums are refunded and LP principal is
+                      returned — no payout.
+                    </span>
+                    <Button
+                      variant="primary"
+                      block
+                      loading={refundPending}
+                      disabled={!isConnected || !marketAddress}
+                      onClick={() => {
+                        void confirmRefund();
+                      }}
+                    >
+                      Claim refund
+                    </Button>
+                  </div>
+                ) : verified ? (
                   <>
                     <div className="flex items-center justify-between">
                       <span
