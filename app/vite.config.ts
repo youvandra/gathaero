@@ -14,7 +14,7 @@ export default defineConfig({
         name: "Gathæro",
         short_name: "Gathæro",
         description: "Predict and protect against flight delays, settled instantly on-chain.",
-        theme_color: "#0ea5e9",
+        theme_color: "#8c1320",
         background_color: "#020617",
         display: "standalone",
         orientation: "portrait",

@@ -1,15 +1,14 @@
+import { Link } from "react-router-dom";
+
 import { MarketingShell } from "../../components/marketing/MarketingShell";
+import { isLive } from "../../features/market/model";
+import { useFlights } from "../../features/market/useFlights";
 import { SILKSCREEN } from "../../lib/theme";
 
-const MARKETS = [
-  { code: "SQ956", route: "SIN → CGK", date: "15 Nov", probability: "6.2%", up: true },
-  { code: "AK380", route: "SIN → KUL", date: "16 Nov", probability: "9.1%", up: true },
-  { code: "TR286", route: "SIN → CGK", date: "15 Nov", probability: "6.2%", up: false },
-  { code: "CZ352", route: "SIN → CAN", date: "17 Nov", probability: "4.4%", up: false },
-  { code: "SQ118", route: "SIN → KUL", date: "18 Nov", probability: "7.8%", up: true },
-];
-
 export function MarketsPage() {
+  const { flights, isLoading } = useFlights();
+  const live = flights.filter(isLive);
+
   return (
     <MarketingShell>
       <div className="mx-auto max-w-3xl py-8">
@@ -21,23 +20,26 @@ export function MarketsPage() {
         </header>
 
         <div className="overflow-hidden rounded-2xl bg-white/10 backdrop-blur-lg">
-          {MARKETS.map((market) => (
-            <div
-              key={market.code}
-              className="grid grid-cols-[1fr_auto_auto] items-center gap-4 border-b border-white/10 px-5 py-4 last:border-b-0"
+          {live.length === 0 ? (
+            <div className="px-5 py-6 text-sm text-white/60">
+              {isLoading ? "Loading markets…" : "No live markets right now."}
+            </div>
+          ) : null}
+          {live.map((market) => (
+            <Link
+              key={market.id}
+              to={`/app/market/${market.code}`}
+              className="grid grid-cols-[1fr_auto_auto] items-center gap-4 border-b border-white/10 px-5 py-4 no-underline last:border-b-0 hover:bg-white/5"
             >
               <div>
                 <div className="font-semibold text-white">{market.code}</div>
                 <div className="text-sm text-white/50">{market.route}</div>
               </div>
               <span className="text-sm text-white/50">{market.date}</span>
-              <span
-                className={`text-sm ${market.up ? "text-green-400" : "text-red-400"}`}
-                style={{ fontFamily: SILKSCREEN }}
-              >
-                {market.probability}
+              <span className="text-sm text-white" style={{ fontFamily: SILKSCREEN }}>
+                {(market.delayProbability * 100).toFixed(1)}%
               </span>
-            </div>
+            </Link>
           ))}
         </div>
       </div>

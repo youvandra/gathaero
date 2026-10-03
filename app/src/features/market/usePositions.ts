@@ -13,6 +13,7 @@ type RawPosition = {
   onTimeBalance: bigint;
   delayedBalance: bigint;
   lpShares: bigint;
+  lpValue: bigint;
   contribution: bigint;
   delayedProbability: bigint;
   resolved: boolean;
@@ -31,7 +32,7 @@ export type Position = {
   shares: bigint;
   mark: number;
   value: number;
-  state: "open" | "won" | "lost" | "voided";
+  state: "open" | "won" | "lost" | "voided" | "settled";
   action: PositionAction;
 };
 
@@ -105,9 +106,9 @@ function extras(raw: RawPosition): Position[] {
       label: labelOf(raw),
       side: "Liquidity",
       shares: raw.lpShares,
-      mark: 1,
-      value: Number(raw.lpShares) / UNIT,
-      state: raw.voided ? "voided" : raw.resolved ? "won" : "open",
+      mark: raw.lpShares > 0n ? Number(raw.lpValue) / Number(raw.lpShares) : 0,
+      value: Number(raw.lpValue) / UNIT,
+      state: raw.voided ? "voided" : raw.resolved ? "settled" : "open",
       action: raw.resolved || raw.voided ? "withdraw" : null,
     });
   }

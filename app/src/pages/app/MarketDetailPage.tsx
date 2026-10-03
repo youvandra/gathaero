@@ -15,7 +15,6 @@ import {
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { parseUnits } from "viem";
 import { useAccount } from "wagmi";
 
 import { STATUS_TONE } from "../../features/dashboard/statusTone";
@@ -26,7 +25,7 @@ import { probabilitySeries, useTrades } from "../../features/market/useActivity"
 import { useBoardingPass } from "../../features/market/useBoardingPass";
 import { pickFlight, useFlights } from "../../features/market/useFlights";
 import { useTransact } from "../../features/market/useTransact";
-import { formatUsdc } from "../../lib/format";
+import { formatUsdc, parseAmount, withSlippage } from "../../lib/format";
 
 type Tab = "protection" | "prediction";
 
@@ -112,13 +111,7 @@ function MarketDetail({ market }: { market: FlightMarket }) {
   const settledProbability =
     market.status === "delayed" ? 1 : market.status === "on time" ? 0 : null;
   const probability = settledProbability ?? market.delayProbability;
-  const parsedAmount = (() => {
-    try {
-      return parseUnits(amount || "0", 6);
-    } catch {
-      return 0n;
-    }
-  })();
+  const parsedAmount = parseAmount(amount);
   const payout = protection ? quoteShares(protection, DELAYED, parsedAmount) : 0n;
 
   const confirmBuy = async () => {
@@ -128,7 +121,7 @@ function MarketDetail({ market }: { market: FlightMarket }) {
       return;
     }
     try {
-      await buy(protection.address, DELAYED, parsedAmount);
+      await buy(protection.address, DELAYED, parsedAmount, withSlippage(payout));
       notify({
         tone: "positive",
         title: "Protection bought",
@@ -334,7 +327,7 @@ function MarketDetail({ market }: { market: FlightMarket }) {
                 format={(value) => `${value.toFixed(0)}%`}
                 label="Arrival distribution"
               />
-              <PredictionBuckets buckets={market.buckets} />
+              <PredictionBuckets buckets={market.buckets} closed={market.status !== "open"} />
               <p
                 style={{
                   margin: 0,

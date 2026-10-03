@@ -16,6 +16,7 @@ const STATE_TONE: Record<Position["state"], TagTone> = {
   won: "positive",
   lost: "critical",
   voided: "caution",
+  settled: "info",
 };
 
 const ACTION_LABEL: Record<Exclude<PositionAction, null>, string> = {

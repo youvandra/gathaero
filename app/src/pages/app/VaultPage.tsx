@@ -11,7 +11,6 @@ import {
 } from "cordon-ui";
 import type { Column } from "cordon-ui";
 import { useState } from "react";
-import { parseUnits } from "viem";
 import { useAccount } from "wagmi";
 
 import { StatTile } from "../../features/dashboard/StatTile";
@@ -20,7 +19,7 @@ import { useFlights } from "../../features/market/useFlights";
 import { useMarketTrends } from "../../features/market/useMarketTrends";
 import { usePositions } from "../../features/market/usePositions";
 import { useTransact } from "../../features/market/useTransact";
-import { formatUsdc } from "../../lib/format";
+import { formatUsdc, parseAmount } from "../../lib/format";
 
 function CardTitle({ children }: { children: string }) {
   return (
@@ -97,7 +96,7 @@ export function VaultPage() {
 
   const confirmAdd = async () => {
     if (!target?.protection) return;
-    const parsed = parseUnits(amount || "0", 6);
+    const parsed = parseAmount(amount);
     if (parsed <= 0n) {
       notify({ tone: "caution", title: "Enter an amount first" });
       return;

@@ -1,6 +1,7 @@
 import { Button, useToast } from "cordon-ui";
 import { useAccount, useConnect, useDisconnect } from "wagmi";
 
+import { env } from "../../config/env";
 import { useCollateralBalance } from "../market/useBalance";
 import { FAUCET_AMOUNT, useTransact } from "../market/useTransact";
 import { formatUsdc, shortenAddress } from "../../lib/format";
@@ -42,12 +43,14 @@ export function WalletButton() {
           variant="secondary"
           size="sm"
           loading={pending}
+          disabled={!env.faucet}
           onClick={() => {
             void claimFaucet();
           }}
-          title="Mint test USDG"
+          title={env.faucet ? "Mint test USDG" : "USDG balance"}
         >
-          {balance === undefined ? "USDG" : `${formatUsdc(balance, 0)} USDG`} +
+          {balance === undefined ? "USDG" : `${formatUsdc(balance, 0)} USDG`}
+          {env.faucet ? " +" : ""}
         </Button>
         <button
           type="button"

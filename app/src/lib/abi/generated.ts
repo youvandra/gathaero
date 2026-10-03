@@ -107,6 +107,11 @@ export const flightMarketAbi = [
         "name": "collateralIn",
         "type": "uint256",
         "internalType": "uint256"
+      },
+      {
+        "name": "minSharesOut",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ],
     "outputs": [
@@ -341,6 +346,25 @@ export const flightMarketAbi = [
         "name": "",
         "type": "address",
         "internalType": "contract OutcomeToken"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "principal",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ],
     "stateMutability": "view"
@@ -805,6 +829,11 @@ export const flightMarketAbi = [
   },
   {
     "type": "error",
+    "name": "SlippageExceeded",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "Unauthorized",
     "inputs": []
   },
@@ -1223,6 +1252,11 @@ export const marketFactoryAbi = [
       }
     ],
     "anonymous": false
+  },
+  {
+    "type": "error",
+    "name": "InvalidRange",
+    "inputs": []
   },
   {
     "type": "error",
@@ -1800,6 +1834,11 @@ export const marketLensAbi = [
             "internalType": "uint256"
           },
           {
+            "name": "lpValue",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
             "name": "contribution",
             "type": "uint256",
             "internalType": "uint256"
@@ -2273,6 +2312,11 @@ export const flightOracleConsumerAbi = [
       }
     ],
     "anonymous": false
+  },
+  {
+    "type": "error",
+    "name": "AlreadyFinalized",
+    "inputs": []
   },
   {
     "type": "error",

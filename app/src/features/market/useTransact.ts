@@ -63,14 +63,14 @@ export function useTransact() {
 
   return {
     pending,
-    buy: (market: Address, outcome: number, amount: bigint) =>
+    buy: (market: Address, outcome: number, amount: bigint, minShares: bigint) =>
       run(async () => {
         await ensureAllowance(market, amount);
         return writeContractAsync({
           address: market,
           abi: flightMarketAbi,
           functionName: "buy",
-          args: [outcome, amount],
+          args: [outcome, amount, minShares],
         });
       }),
     addLiquidity: (market: Address, amount: bigint) =>
@@ -95,13 +95,14 @@ export function useTransact() {
     redeem: (market: Address) => write(market, "redeem"),
     refund: (market: Address) => write(market, "refund"),
     faucet: () =>
-      run(() =>
-        writeContractAsync({
+      run(() => {
+        if (!address) throw new Error("Connect a wallet first");
+        return writeContractAsync({
           address: env.contracts.collateral,
           abi: collateralAbi,
           functionName: "mint",
-          args: [address ?? env.contracts.collateral, FAUCET_AMOUNT],
-        }),
-      ),
+          args: [address, FAUCET_AMOUNT],
+        });
+      }),
   };
 }

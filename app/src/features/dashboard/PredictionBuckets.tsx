@@ -1,12 +1,20 @@
 import { Button, Tag, TextField, useToast } from "cordon-ui";
 import { useState } from "react";
-import { parseUnits } from "viem";
 import { useAccount } from "wagmi";
 
-import { DELAYED, ON_TIME, type Bucket } from "../market/model";
+import { DELAYED, ON_TIME, quoteShares, type Bucket } from "../market/model";
 import { useTransact } from "../market/useTransact";
+import { parseAmount, withSlippage } from "../../lib/format";
 
-function BucketRow({ bucket, amount }: { bucket: Bucket; amount: string }) {
+function BucketRow({
+  bucket,
+  amount,
+  closed,
+}: {
+  bucket: Bucket;
+  amount: string;
+  closed: boolean;
+}) {
   const { isConnected } = useAccount();
   const { notify } = useToast();
   const { buy, pending } = useTransact();
@@ -14,13 +22,18 @@ function BucketRow({ bucket, amount }: { bucket: Bucket; amount: string }) {
   const settled = bucket.resolved || bucket.voided;
 
   const trade = async (outcome: number) => {
-    const parsed = parseUnits(amount || "0", 6);
+    const parsed = parseAmount(amount);
     if (parsed <= 0n) {
       notify({ tone: "caution", title: "Enter a stake first" });
       return;
     }
     try {
-      await buy(bucket.address, outcome, parsed);
+      await buy(
+        bucket.address,
+        outcome,
+        parsed,
+        withSlippage(quoteShares(bucket, outcome, parsed)),
+      );
       notify({
         tone: "positive",
         title: outcome === ON_TIME ? "Prediction placed · Yes" : "Prediction placed · No",
@@ -49,7 +62,13 @@ function BucketRow({ bucket, amount }: { bucket: Bucket; amount: string }) {
       >
         {bucket.from} – {bucket.to}
       </span>
-      {settled ? (
+      {closed && !settled ? (
+        <span className="col-span-2 flex justify-end">
+          <Tag tone="info" size="sm">
+            closed
+          </Tag>
+        </span>
+      ) : settled ? (
         <span className="col-span-2 flex justify-end">
           <Tag tone={bucket.voided ? "caution" : bucket.hit ? "positive" : "neutral"} size="sm">
             {bucket.voided ? "voided" : bucket.hit ? "landed here" : "missed"}
@@ -83,7 +102,7 @@ function BucketRow({ bucket, amount }: { bucket: Bucket; amount: string }) {
   );
 }
 
-export function PredictionBuckets({ buckets }: { buckets: Bucket[] }) {
+export function PredictionBuckets({ buckets, closed }: { buckets: Bucket[]; closed: boolean }) {
   const [amount, setAmount] = useState("5");
 
   return (
@@ -108,7 +127,7 @@ export function PredictionBuckets({ buckets }: { buckets: Bucket[] }) {
       </div>
       <div>
         {buckets.map((bucket) => (
-          <BucketRow key={bucket.address} bucket={bucket} amount={amount} />
+          <BucketRow key={bucket.address} bucket={bucket} amount={amount} closed={closed} />
         ))}
       </div>
     </div>

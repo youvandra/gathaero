@@ -3,9 +3,9 @@ import { Link, useNavigate } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 
 import videoSrc from "../assets/hero.mp4";
-
-const CTA_GRADIENT = "linear-gradient(180deg, #bd4468 0%, #8c1320 100%)";
-const SILKSCREEN = "'Silkscreen', cursive";
+import { isLive } from "../features/market/model";
+import { useFlights } from "../features/market/useFlights";
+import { CTA_GRADIENT, SILKSCREEN } from "../lib/theme";
 
 const NAV_LINKS = [
   { label: "Markets", to: "/markets" },
@@ -22,6 +22,8 @@ function Logo() {
 export function LandingPage() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
+  const [query, setQuery] = useState("");
+  const { flights } = useFlights();
 
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
@@ -146,12 +148,15 @@ export function LandingPage() {
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
-                  navigate("/app/market");
+                  const code = query.trim().toUpperCase();
+                  navigate(code ? `/app/market/${code}` : "/app/market");
                 }}
                 className="mt-6 flex flex-col gap-3 sm:mt-8 sm:inline-flex sm:flex-row sm:items-center sm:gap-0 sm:rounded-full sm:bg-white sm:p-1.5"
               >
                 <input
                   type="text"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
                   placeholder="Type flight code"
                   className="rounded-full bg-white px-5 py-3 text-sm text-gray-900 placeholder-gray-400 outline-none sm:w-64 sm:rounded-none sm:bg-transparent sm:px-4 sm:py-2"
                 />
@@ -171,7 +176,7 @@ export function LandingPage() {
                   className="text-3xl tracking-tight text-[#010101] sm:text-4xl lg:text-white"
                   style={{ fontFamily: SILKSCREEN, fontWeight: 400 }}
                 >
-                  1,248
+                  {flights.filter(isLive).length.toLocaleString()}
                 </div>
                 <p className="mt-3 text-sm leading-relaxed text-[#010101]/70 sm:mt-4 lg:text-white/70">
                   Flights priced and protected on Gathaero right now.

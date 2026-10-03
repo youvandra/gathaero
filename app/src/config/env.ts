@@ -16,6 +16,7 @@ export const env = {
   rpcUrl: readString(import.meta.env.VITE_RPC_URL, "https://sepolia-rollup.arbitrum.io/rpc"),
   walletConnectProjectId: readString(import.meta.env.VITE_WALLETCONNECT_PROJECT_ID, ""),
   deployBlock: readBigInt(import.meta.env.VITE_DEPLOY_BLOCK),
+  faucet: import.meta.env.VITE_FAUCET !== "false",
   contracts: {
     marketFactory: readAddress(import.meta.env.VITE_MARKET_FACTORY),
     marketLens: readAddress(import.meta.env.VITE_MARKET_LENS),
