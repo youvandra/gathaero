@@ -4,7 +4,7 @@ Flight-risk market on **Arbitrum**: predict and protect against flight delays, s
 Prediction and delay protection are the same primitive — a position on a flight's outcome.
 
 - **Chain:** Arbitrum Sepolia (421614) / Arbitrum One (42161)
-- **Repo:** `github.com/youvandra/gathaero` (branch `main`, 23 commits)
+- **Repo:** `github.com/youvandra/gathaero` (branch `main`)
 - **Remote push:** pending — HTTPS needs a credential (PAT) or a manual `git push`
 
 ## Decisions locked
@@ -30,57 +30,48 @@ docs/        spec.md (product), STATUS.md (this)
 ## Contracts (`contracts/src`)
 | Contract | Role |
 |---|---|
-| `FlightRegistry` | flights (number, scheduledArrival, delayThreshold) |
-| `MarketFactory` | `createProtection` / `createThreshold` / `createRange` + lookups |
-| `FlightMarket` | CPMM AMM over 2 outcome tokens; buy, resolve, redeem, liquidity, **void/refund** |
-| `MarketKind` | `Protection` (delay binary) · `Threshold` (ATA ≤ strike) · `Range` (lower < ATA ≤ upper) |
+| `FlightRegistry` | flights (number, route, scheduledArrival, delayThreshold) + `flightIds()` |
+| `MarketFactory` | `createProtection` / `createThreshold` / `createRange` + lookups, `rangeMarketsOf` |
+| `FlightMarket` | CPMM over 2 outcome tokens; buy, resolve, redeem, liquidity, void/refund, `volume` |
+| `MarketLens` | read-only aggregate: `flights()`, `positionsOf(user)` — one call per page |
 | `FlightOracleConsumer` | multi-reporter store of resolutions |
 | `FlightOracleReceiver` | `IReceiver` for Chainlink CRE reports |
-| `MockFeeder` | demo reporter |
-| `OutcomeToken` | ERC-1155 (ON_TIME=0, DELAYED=1) |
-| `MockERC20` | local collateral |
+| `MockFeeder` | owner-only reporter used by `feeder/` |
+| `MockERC20` | test **USDG** (Global Dollar, 6 dp) with open `mint` = faucet |
 
-**Force majeure:** `contributions[trader]` tracked on buy; `resolveVoid()` (resolver) → `refund()` returns
-contributions, `removeLiquidity` returns `lpCollateral` pro-rata. Invariant: `lpCollateral + Σcontributions = total`.
+- Collateral: `Deploy.s.sol` uses `COLLATERAL` if set (e.g. Paxos USDG), else deploys mock USDG.
+- Trading (`buy`, `addLiquidity`) closes at `scheduledArrival`; resolution has no time gate.
+- `Bought` event carries `delayedProbability` → price history without an indexer.
 
-Tests: `forge test` → **15/15 pass** (protection, threshold, range, void).
+Tests: `forge test` → **21/21 pass**.
 
 ## App (`app/src`)
-- **Routes** (BrowserRouter, clean URLs):
-  - Public: `/` landing, `/markets`, `/how`, `/docs`
-  - App: `/app` (Home), `/app/market` (list), `/app/market/:code` (detail), `/app/positions`, `/app/vault`, `/app/earn` (coming soon)
-- **Design:** Cordon (paper/ceramic, LED-free numbers, tables, charts) + toasts + input modals.
-- **Market detail:** `Protection | Predictions` segmented.
-  - Protection: probability split, **boarding-pass gate** (insurable interest), buy modal → toast.
-  - Predictions: ATA **range buckets** ("07:30–07:40"), Yes/No, wired to `rangeMarketOf`.
-- **Positions:** DataTable with PnL + claim/sell toasts.
-- **Vault:** KPIs, TVL chart, add-liquidity modal, route-pools table.
-- **Mocks:** `features/dashboard/mockMarkets.ts` (display when contracts not configured).
+- All dashboard data is on-chain via `MarketLens` (no mocks). Hooks in `features/market/`:
+  `useFlights`, `usePositions`, `useTrades` (Bought logs from `VITE_DEPLOY_BLOCK`), `useTransact`
+  (switch chain → approve if needed → write → wait → refetch), `useCollateralBalance`.
+- Wallet button shows USDG balance; clicking it mints 1,000 test USDG.
+- Times shown in UTC.
+- ABIs: `contracts/script/export-abis.sh` regenerates `app/src/lib/abi/generated.ts` and `feeder/src/abi.ts`.
 
-## Oracle
-- **CRE** (`cre/`): cron → AeroDataBox `/flights/number/{n}/{date}` → consensus → report to `FlightOracleReceiver`.
-  Needs `RAPIDAPI_KEY` secret + Arbitrum Sepolia enabled for tenant + deploy access.
-- **Feeder** (`feeder/`): Node + viem, posts via `MockFeeder`. Fallback for demos.
-- **AeroDataBox:** RapidAPI Basic (free 400 units). Delay = `arrival.revised − scheduled`. Verified working.
+## Feeder (`feeder/`)
+- `npm run list` — registers every flight in `src/flights.json`, creates protection + 4 arrival-window
+  markets, seeds liquidity and sets starting odds. With `RAPIDAPI_KEY` the schedule/route come
+  from AeroDataBox; otherwise from the JSON.
+- `npm run resolve` — for flights past arrival + grace: AeroDataBox `Arrived` → feed delay + resolve all
+  markets; `Canceled`/`Diverted` → void. `--watch` repeats every 5 min.
+- Manual: `npm run resolve -- SQ956 2026-10-04 75` or `... void`.
 
-## Run
+## Deploy runbook (Arbitrum Sepolia)
 ```
-cd contracts && forge build && forge test
-cd app       && npm install && npm run dev        # http://127.0.0.1:5173
-cd feeder    && npm install && npm run start
-cd cre       && see cre/README.md
+cd contracts && forge script script/Deploy.s.sol --rpc-url arbitrum_sepolia --private-key $KEY --broadcast
+# copy addresses into feeder/.env and app/.env (VITE_DEPLOY_BLOCK = deploy block)
+cd feeder && npm run list && npm run resolve -- --watch
 ```
-Env (`app/.env.example`): `VITE_RPC_URL`, `VITE_MARKET_FACTORY`, `VITE_ORACLE`, `VITE_USDC`,
-`VITE_WALLETCONNECT_PROJECT_ID`. Feeder/CRE: `RAPIDAPI_KEY`, keys.
+Verified end-to-end on local anvil: list → faucet → buy protection → resolve delayed → claim.
 
 ## Not done yet
-- **Deploy contracts** to Arbitrum Sepolia (needs funded key + faucet ETH) → then UI goes "Live".
-- Wire **Home KPIs / Positions / Vault** fully on-chain (currently mock when unconfigured).
-- Public pages (Markets/How/Docs) still nexum-style — could adopt Cordon.
-- Skeleton loading states; command palette; wallet dropdown menu.
-- Terms copy for force majeure / insurable interest in UI.
-
-## Open questions
-- Exact Arbitrum Open House tracks/bounties (HackQuest, login-gated).
-- CRE: is Arbitrum Sepolia enabled for our org? (`cre workflow supported-chains`)
-- Push: which credential to use (PAT) or manual push.
+- Deploy to Arbitrum Sepolia (needs funded deployer key) and fill `app/.env`.
+- `RAPIDAPI_KEY` for real schedules/resolution; `flights.json` times are estimates until then.
+- CRE workflow posts `finalized=true` regardless of flight status — should only finalize on `Arrived`.
+- Boarding pass check is client-side only (localStorage).
+- No sell/exit before settlement (CPMM has no `sell`).
