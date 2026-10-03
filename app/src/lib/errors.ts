@@ -32,14 +32,6 @@ const REVERTS: Record<string, Explained> = {
     message:
       "Smart-contract wallets can't receive the shares a market returns. Use a regular wallet such as MetaMask or Rabby.",
   },
-  ERC20InsufficientAllowance: {
-    title: "USDG not approved yet",
-    message: "Approve USDG in your wallet first, then confirm again.",
-  },
-  ERC20InsufficientBalance: {
-    title: "Not enough USDG",
-    message: "Tap your USDG balance at the top to get test USDG, then try again.",
-  },
   MarketClosed: {
     title: "Trading is closed",
     message: "This flight has departed, so trading is closed. It settles after landing.",
