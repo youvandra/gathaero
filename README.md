@@ -1,9 +1,10 @@
 # Gathæro
 
-**Flight delay protection that only the people on board can buy, settled on
-Arbitrum from real arrival data.** A traveller scans their boarding pass, the
-pass is linked to their wallet on-chain, and if the flight arrives more than 30
-minutes late they are paid in USDG automatically. There is no claim to file.
+**Trade your own flight.** Gathæro is a flight market on Arbitrum that only the
+people on board can use. A traveller scans their boarding pass, the pass is
+linked to their wallet on-chain, and they can **protect** against a delay or
+**predict** the arrival time. Every market settles in USDG from the flight's real
+gate arrival, with no claim to file.
 
 [![Solidity](https://img.shields.io/badge/Solidity-0.8.28-363636)](contracts)
 [![Foundry](https://img.shields.io/badge/Foundry-38%20tests%20passing-2f855a)](#testing)
@@ -71,8 +72,8 @@ opened markets on flight cancellations to anyone; within weeks FlightAware sued,
 warning that such markets give people a reason to disrupt flights. An open
 market on a flight invites exactly the people who can influence it.
 
-**Gathæro is a market that only the people hurt by a delay can trade.** Each
-flight gets its own pool, every buyer is a verified passenger of that flight,
+**Gathæro is a flight market that only the people on board can trade.** Each
+flight gets its own pools, every trader is a verified passenger of that flight,
 trading closes at departure, and the outcome comes from the flight's actual gate
 arrival.
 
@@ -88,9 +89,11 @@ arrival.
 - The traveller **registers the pass** in `PassRegistry` with one transaction.
   From then on that wallet is a passenger of that flight, and the pass can never
   be used by another wallet.
-- The passenger **buys protection**: the Delayed side of the flight's pool, at
-  the market's live delay probability. They can also predict which arrival
-  window the flight lands in.
+- The passenger trades their flight in two ways:
+  - **Protect:** buy the Delayed side of the protection pool at the market's
+    live delay probability, as a hedge against a late arrival.
+  - **Predict:** trade Yes or No on arrival windows, for example "arrives 10 to
+    30 minutes late", and back their own read of the flight.
 - **Trading closes at scheduled departure**, before anyone can see the arrival
   coming.
 - About **30 minutes after arrival** the resolver reads the gate arrival, writes
