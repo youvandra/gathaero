@@ -66,7 +66,7 @@ const REVERTS: Record<string, Explained> = {
   ZeroAmount: { title: "Enter an amount", message: "The amount must be more than zero." },
   NotPassenger: {
     title: "Boarding pass needed",
-    message: "Verify your boarding pass for this flight before buying protection.",
+    message: "Verify your boarding pass for this flight before trading on it.",
   },
   PassAlreadyUsed: {
     title: "Boarding pass already used",

@@ -174,9 +174,7 @@ contract FlightMarket is IERC1155Receiver, ReentrancyGuard {
         if (!isOpen()) revert MarketAlreadyResolved();
         if (block.timestamp >= scheduledArrival) revert MarketClosed();
         if (collateralIn == 0) revert ZeroAmount();
-        if (_requiresPass(want) && !passes.isPassenger(flightId, msg.sender)) {
-            revert NotPassenger();
-        }
+        if (_requiresPass() && !passes.isPassenger(flightId, msg.sender)) revert NotPassenger();
 
         uint256 wantId = _id(want);
         uint256 unwantedId = wantId == outcome.ON_TIME() ? outcome.DELAYED() : outcome.ON_TIME();
@@ -261,10 +259,10 @@ contract FlightMarket is IERC1155Receiver, ReentrancyGuard {
         );
     }
 
-    function _requiresPass(Outcome want) private view returns (bool) {
-        return
-            kind == MarketKind.Protection && want == Outcome.Delayed
-                && address(passes) != address(0);
+    /// Every side of every market on a flight is for its passengers. The resolver is the
+    /// operator that lists the market and seeds its opening odds, so it trades without a pass.
+    function _requiresPass() private view returns (bool) {
+        return address(passes) != address(0) && msg.sender != resolver;
     }
 
     function _returnExcess(uint256 id, uint256 amount, uint256 reserve, uint256 poolWeight)

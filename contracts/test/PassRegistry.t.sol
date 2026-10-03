@@ -2,6 +2,7 @@
 pragma solidity 0.8.28;
 
 import { Test } from "forge-std/Test.sol";
+import { ERC1155Holder } from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 
 import { MockERC20 } from "../src/mocks/MockERC20.sol";
 import { FlightRegistry } from "../src/registry/FlightRegistry.sol";
@@ -12,7 +13,7 @@ import { FlightMarket } from "../src/market/FlightMarket.sol";
 import { Outcome } from "../src/types/FlightTypes.sol";
 import { NotPassenger, PassAlreadyUsed, PassExpired, Unauthorized } from "../src/lib/Errors.sol";
 
-contract PassRegistryTest is Test {
+contract PassRegistryTest is Test, ERC1155Holder {
     uint256 internal constant UNIT = 1e6;
     uint256 internal constant VERIFIER_KEY = 0xA11CE;
 
@@ -22,6 +23,7 @@ contract PassRegistryTest is Test {
     MockERC20 internal usdg;
     PassRegistry internal passes;
     FlightMarket internal protection;
+    FlightMarket internal range;
 
     address internal passenger = address(0xB0B);
     address internal other = address(0xCAFE);
@@ -46,6 +48,13 @@ contract PassRegistryTest is Test {
         usdg.mint(address(this), 1_000 * UNIT);
         usdg.approve(address(protection), type(uint256).max);
         protection.addLiquidity(1_000 * UNIT);
+
+        uint64 arrival = uint64(block.timestamp + 6 hours);
+        range =
+            FlightMarket(factory.createRange(flightId, arrival - 10 minutes, arrival + 10 minutes));
+        usdg.mint(address(this), 1_000 * UNIT);
+        usdg.approve(address(range), type(uint256).max);
+        range.addLiquidity(1_000 * UNIT);
 
         for (uint256 i; i < 2; ++i) {
             address wallet = i == 0 ? passenger : other;
@@ -98,9 +107,37 @@ contract PassRegistryTest is Test {
         assertGt(protection.outcome().balanceOf(passenger, 1), 0);
     }
 
-    function test_OnTimeSideStaysOpen() public {
+    function test_OnTimeSideRequiresPass() public {
         vm.prank(other);
+        vm.expectRevert(NotPassenger.selector);
         protection.buy(Outcome.OnTime, 10 * UNIT, 0);
+    }
+
+    function test_RangeRequiresPass() public {
+        vm.prank(other);
+        usdg.approve(address(range), type(uint256).max);
+        vm.prank(other);
+        vm.expectRevert(NotPassenger.selector);
+        range.buy(Outcome.Delayed, 10 * UNIT, 0);
+    }
+
+    function test_PassengerCanBuyRange() public {
+        uint64 expiry = uint64(block.timestamp + 1 hours);
+        bytes memory signature = _sign(passenger, passHash, expiry);
+
+        vm.startPrank(passenger);
+        passes.register(flightId, passHash, expiry, signature);
+        usdg.approve(address(range), type(uint256).max);
+        range.buy(Outcome.Delayed, 10 * UNIT, 0);
+        vm.stopPrank();
+
+        assertGt(range.outcome().balanceOf(passenger, 1), 0);
+    }
+
+    function test_ResolverSeedsOddsWithoutPass() public {
+        usdg.mint(address(this), 10 * UNIT);
+        protection.buy(Outcome.OnTime, 10 * UNIT, 0);
+        assertGt(protection.outcome().balanceOf(address(this), 0), 0);
     }
 
     function test_SignatureIsBoundToWallet() public {
