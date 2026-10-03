@@ -66,7 +66,10 @@ Tests: `forge test` → **33/33 pass** (compiled with `via_ir`).
   markets, seeds liquidity and sets starting odds. With `RAPIDAPI_KEY` the schedule/route come
   from AeroDataBox; otherwise from the JSON.
 - `npm run resolve` — for flights past arrival + grace: AeroDataBox `Arrived` → feed delay + resolve all
-  markets; `Canceled`/`Diverted` → void. `--watch` repeats every 5 min.
+  markets; `Canceled`/`Diverted` → void. `--watch` repeats every 10 min.
+- Delay = actual arrival − scheduled arrival from the on-chain registry. Actual arrival is
+  AeroDataBox `revisedTime` (gate arrival, the airline on-time standard), falling back to
+  `runwayTime` (touchdown). With neither, the flight stays pending and is retried.
 - Manual: `npm run resolve -- SQ956 2026-10-04 75` or `... void`.
 
 ## Deploy runbook (Arbitrum Sepolia)

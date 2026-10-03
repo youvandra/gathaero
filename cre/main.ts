@@ -46,7 +46,9 @@ function landingOf(payload: unknown): Landing {
   if (!flight || !scheduled || flight.status !== "Arrived") {
     return { arrived: false, delayMinutes: 0 };
   }
-  const actual = flight.arrival.runwayTime?.utc ?? flight.arrival.revisedTime?.utc ?? scheduled;
+  // Gate arrival first (airline on-time standard), touchdown as fallback.
+  const actual = flight.arrival.revisedTime?.utc ?? flight.arrival.runwayTime?.utc;
+  if (!actual) return { arrived: false, delayMinutes: 0 };
   return {
     arrived: true,
     delayMinutes: Math.round((parseUtc(actual) - parseUtc(scheduled)) / 60_000),

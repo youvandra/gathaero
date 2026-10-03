@@ -6,6 +6,13 @@ flight's outcome. Hedgers get protection, traders get a market, settlement is in
 
 Built on **Arbitrum** (EVM L2). Oracle via **Chainlink CRE** + **AeroDataBox**.
 
+## Settlement
+
+Delay is actual arrival minus the scheduled arrival recorded on-chain when the flight was
+listed. Actual arrival is AeroDataBox `revisedTime` (gate arrival, the airline on-time
+standard), falling back to `runwayTime` (touchdown). A flight settles only once it is
+`Arrived` with one of those times; `Canceled` or `Diverted` voids it and refunds everyone.
+
 ## Structure
 ```
 contracts/   Solidity + Foundry

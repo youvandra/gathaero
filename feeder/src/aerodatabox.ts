@@ -63,14 +63,18 @@ export async function fetchFlight(
   const scheduled = flight?.arrival.scheduledTime?.utc;
   if (!flight || !scheduled) throw new Error(`No arrival schedule for ${flightNumber}`);
 
+  // Delay follows the airline on-time standard: gate arrival, which AeroDataBox
+  // reports as revisedTime once the flight has arrived. Touchdown is the fallback.
+  // With neither, the flight stays pending rather than settling as on time.
   const arrival = flight.arrival;
-  const actual = arrival.runwayTime?.utc ?? arrival.revisedTime?.utc ?? scheduled;
+  const actual = arrival.revisedTime?.utc ?? arrival.runwayTime?.utc;
+  const outcome = outcomeOf(flight.status);
 
   return {
     status: flight.status,
-    outcome: outcomeOf(flight.status),
+    outcome: outcome === "landed" && !actual ? "pending" : outcome,
     route: routeOf(flight),
     scheduledArrival: Math.floor(parseUtc(scheduled) / 1000),
-    actualArrival: Math.floor(parseUtc(actual) / 1000),
+    actualArrival: Math.floor(parseUtc(actual ?? scheduled) / 1000),
   };
 }
