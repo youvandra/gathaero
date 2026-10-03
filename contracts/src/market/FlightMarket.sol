@@ -21,6 +21,7 @@ import {
     NothingToRedeem,
     ResolutionNotFinal,
     SlippageExceeded,
+    StakeLimitExceeded,
     Unauthorized,
     ZeroAddress,
     ZeroAmount
@@ -30,6 +31,9 @@ contract FlightMarket is IERC1155Receiver, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     uint256 public constant WAD = 1e18;
+    /// Most a passenger can put into one market: about a ticket's worth of 6-decimal USDG.
+    /// It keeps protection sized as a hedge, so causing a delay never pays.
+    uint256 public constant MAX_STAKE = 200e6;
 
     IERC20 public immutable collateral;
     IFlightOracle public immutable oracle;
@@ -40,6 +44,7 @@ contract FlightMarket is IERC1155Receiver, ReentrancyGuard {
     bytes32 public immutable flightId;
     MarketKind public immutable kind;
     uint16 public immutable delayThresholdMinutes;
+    uint64 public immutable scheduledDeparture;
     uint64 public immutable scheduledArrival;
     uint64 public immutable strikeArrival;
     uint64 public immutable lowerBound;
@@ -51,6 +56,7 @@ contract FlightMarket is IERC1155Receiver, ReentrancyGuard {
     mapping(address => uint256) public shares;
     mapping(address => uint256) public principal;
     mapping(address => uint256) public contributions;
+    mapping(address => uint256) public staked;
 
     bool public resolved;
     bool public voided;
@@ -77,6 +83,7 @@ contract FlightMarket is IERC1155Receiver, ReentrancyGuard {
         bytes32 flightId_,
         MarketKind kind_,
         uint16 delayThresholdMinutes_,
+        uint64 scheduledDeparture_,
         uint64 scheduledArrival_,
         uint64 strikeArrival_,
         uint64 lowerBound_,
@@ -93,6 +100,7 @@ contract FlightMarket is IERC1155Receiver, ReentrancyGuard {
         flightId = flightId_;
         kind = kind_;
         delayThresholdMinutes = delayThresholdMinutes_;
+        scheduledDeparture = scheduledDeparture_;
         scheduledArrival = scheduledArrival_;
         strikeArrival = strikeArrival_;
         lowerBound = lowerBound_;
@@ -106,12 +114,12 @@ contract FlightMarket is IERC1155Receiver, ReentrancyGuard {
     }
 
     function isTrading() public view returns (bool) {
-        return isOpen() && block.timestamp < scheduledArrival;
+        return isOpen() && block.timestamp < scheduledDeparture;
     }
 
     function addLiquidity(uint256 amount) external nonReentrant returns (uint256 sharesMinted) {
         if (!isOpen()) revert MarketAlreadyResolved();
-        if (block.timestamp >= scheduledArrival) revert MarketClosed();
+        if (block.timestamp >= scheduledDeparture) revert MarketClosed();
         if (amount == 0) revert ZeroAmount();
 
         uint256 onTimeId = outcome.ON_TIME();
@@ -172,9 +180,13 @@ contract FlightMarket is IERC1155Receiver, ReentrancyGuard {
         returns (uint256 sharesOut)
     {
         if (!isOpen()) revert MarketAlreadyResolved();
-        if (block.timestamp >= scheduledArrival) revert MarketClosed();
+        if (block.timestamp >= scheduledDeparture) revert MarketClosed();
         if (collateralIn == 0) revert ZeroAmount();
-        if (_requiresPass() && !passes.isPassenger(flightId, msg.sender)) revert NotPassenger();
+        if (_requiresPass()) {
+            if (!passes.isPassenger(flightId, msg.sender)) revert NotPassenger();
+            staked[msg.sender] += collateralIn;
+            if (staked[msg.sender] > MAX_STAKE) revert StakeLimitExceeded();
+        }
 
         uint256 wantId = _id(want);
         uint256 unwantedId = wantId == outcome.ON_TIME() ? outcome.DELAYED() : outcome.ON_TIME();

@@ -21,3 +21,5 @@ error UnknownWorkflow();
 error PassAlreadyUsed();
 error PassExpired();
 error NotPassenger();
+error StakeLimitExceeded();
+error NotTransferable();

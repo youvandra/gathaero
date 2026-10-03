@@ -19,6 +19,7 @@ export type FlightSnapshot = {
   status: string;
   outcome: FlightOutcome;
   route: string | null;
+  scheduledDeparture: number | null;
   scheduledArrival: number;
   actualArrival: number;
 };
@@ -67,6 +68,7 @@ export async function fetchFlight(
   // reports as revisedTime once the flight has arrived. Touchdown is the fallback.
   // With neither, the flight stays pending rather than settling as on time.
   const arrival = flight.arrival;
+  const departure = flight.departure.scheduledTime?.utc;
   const actual = arrival.revisedTime?.utc ?? arrival.runwayTime?.utc;
   const outcome = outcomeOf(flight.status);
 
@@ -74,6 +76,7 @@ export async function fetchFlight(
     status: flight.status,
     outcome: outcome === "landed" && !actual ? "pending" : outcome,
     route: routeOf(flight),
+    scheduledDeparture: departure ? Math.floor(parseUtc(departure) / 1000) : null,
     scheduledArrival: Math.floor(parseUtc(scheduled) / 1000),
     actualArrival: Math.floor(parseUtc(actual ?? scheduled) / 1000),
   };

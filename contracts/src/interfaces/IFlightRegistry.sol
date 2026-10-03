@@ -8,6 +8,7 @@ interface IFlightRegistry {
         bytes32 flightId,
         string calldata number,
         string calldata route,
+        uint64 scheduledDeparture,
         uint64 scheduledArrival,
         uint16 delayThresholdMinutes
     ) external;

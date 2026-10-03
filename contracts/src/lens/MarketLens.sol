@@ -27,6 +27,7 @@ struct FlightView {
     bytes32 flightId;
     string number;
     string route;
+    uint64 scheduledDeparture;
     uint64 scheduledArrival;
     uint16 delayThresholdMinutes;
     int32 delayMinutes;
@@ -75,6 +76,7 @@ contract MarketLens {
         view_.flightId = flightId;
         view_.number = info.number;
         view_.route = info.route;
+        view_.scheduledDeparture = info.scheduledDeparture;
         view_.scheduledArrival = info.scheduledArrival;
         view_.delayThresholdMinutes = info.delayThresholdMinutes;
         view_.delayMinutes = delayMinutes;

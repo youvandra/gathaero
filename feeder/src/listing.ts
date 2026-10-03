@@ -14,6 +14,7 @@ type Listing = {
   number: string;
   date: string;
   route: string;
+  scheduledDeparture?: string;
   scheduledArrival: string;
   delayThresholdMinutes: number;
   delayProbability: number;
@@ -143,28 +144,44 @@ async function ensureRange(
   return result;
 }
 
-async function resolveSchedule(config: FeederConfig, listing: Listing) {
-  const fallback = {
-    route: listing.route,
-    scheduledArrival: Math.floor(Date.parse(listing.scheduledArrival) / 1000),
-  };
+type Schedule = { route: string; scheduledDeparture: number; scheduledArrival: number };
+
+const toSeconds = (iso: string): number => Math.floor(Date.parse(iso) / 1000);
+
+async function resolveSchedule(config: FeederConfig, listing: Listing): Promise<Schedule | null> {
+  const fallback = listing.scheduledDeparture
+    ? {
+        route: listing.route,
+        scheduledDeparture: toSeconds(listing.scheduledDeparture),
+        scheduledArrival: toSeconds(listing.scheduledArrival),
+      }
+    : null;
   if (!config.rapidApi) return fallback;
 
   try {
     const live = await fetchFlight(listing.number, listing.date, config.rapidApi, listing.route);
-    return { route: live.route ?? listing.route, scheduledArrival: live.scheduledArrival };
+    if (live.scheduledDeparture === null) throw new Error("no departure schedule");
+    return {
+      route: live.route ?? listing.route,
+      scheduledDeparture: live.scheduledDeparture,
+      scheduledArrival: live.scheduledArrival,
+    };
   } catch (error) {
-    console.warn(`  schedule lookup failed, using flights.json: ${(error as Error).message}`);
+    console.warn(`  schedule lookup failed: ${(error as Error).message}`);
     return fallback;
   }
 }
+
+// Trading closes at departure, so a flight is only worth listing well before it.
+const tooLate = (schedule: Schedule): boolean =>
+  schedule.scheduledDeparture <= Math.floor(Date.now() / 1000) + MIN_LEAD_SECONDS;
 
 async function registerOnce(
   clients: Clients,
   config: FeederConfig,
   flightId: Hex,
   listing: Listing,
-): Promise<{ route: string; scheduledArrival: number }> {
+): Promise<Schedule | null> {
   const exists = await clients.publicClient.readContract({
     address: config.contracts.registry,
     abi: flightRegistryAbi,
@@ -178,10 +195,15 @@ async function registerOnce(
       functionName: "getFlight",
       args: [flightId],
     });
-    return { route: flight.route, scheduledArrival: Number(flight.scheduledArrival) };
+    return {
+      route: flight.route,
+      scheduledDeparture: Number(flight.scheduledDeparture),
+      scheduledArrival: Number(flight.scheduledArrival),
+    };
   }
 
   const schedule = await resolveSchedule(config, listing);
+  if (!schedule || tooLate(schedule)) return schedule;
   await confirm(
     clients,
     clients.walletClient.writeContract({
@@ -192,6 +214,7 @@ async function registerOnce(
         flightId,
         listing.number,
         schedule.route,
+        BigInt(schedule.scheduledDeparture),
         BigInt(schedule.scheduledArrival),
         listing.delayThresholdMinutes,
       ],
@@ -203,13 +226,18 @@ async function registerOnce(
 async function list(clients: Clients, config: FeederConfig, listing: Listing): Promise<void> {
   const flightId = flightIdOf(listing.number, listing.date);
   const schedule = await registerOnce(clients, config, flightId, listing);
-  const arrival = new Date(schedule.scheduledArrival * 1000).toISOString();
-
-  if (schedule.scheduledArrival <= Math.floor(Date.now() / 1000) + MIN_LEAD_SECONDS) {
-    console.log(`${listing.number} ${listing.date} arrives ${arrival}, too late to trade, skipped`);
+  if (!schedule) {
+    console.log(`${listing.number} ${listing.date} has no departure schedule, skipped`);
     return;
   }
-  console.log(`${listing.number} ${listing.date} ${schedule.route} arr ${arrival}`);
+  const departure = new Date(schedule.scheduledDeparture * 1000).toISOString();
+  const arrival = new Date(schedule.scheduledArrival * 1000).toISOString();
+
+  if (tooLate(schedule)) {
+    console.log(`${listing.number} ${listing.date} departs ${departure}, too late to trade, skipped`);
+    return;
+  }
+  console.log(`${listing.number} ${listing.date} ${schedule.route} dep ${departure} arr ${arrival}`);
 
   const protection = await ensureProtection(clients, config, flightId);
   await seedMarket(clients, config, protection, PROTECTION_LIQUIDITY, listing.delayProbability);

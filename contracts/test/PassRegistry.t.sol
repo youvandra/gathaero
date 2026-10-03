@@ -10,8 +10,16 @@ import { PassRegistry } from "../src/registry/PassRegistry.sol";
 import { FlightOracleConsumer } from "../src/oracle/FlightOracleConsumer.sol";
 import { MarketFactory } from "../src/market/MarketFactory.sol";
 import { FlightMarket } from "../src/market/FlightMarket.sol";
+import { OutcomeToken } from "../src/tokens/OutcomeToken.sol";
 import { Outcome } from "../src/types/FlightTypes.sol";
-import { NotPassenger, PassAlreadyUsed, PassExpired, Unauthorized } from "../src/lib/Errors.sol";
+import {
+    NotPassenger,
+    NotTransferable,
+    PassAlreadyUsed,
+    PassExpired,
+    StakeLimitExceeded,
+    Unauthorized
+} from "../src/lib/Errors.sol";
 
 contract PassRegistryTest is Test, ERC1155Holder {
     uint256 internal constant UNIT = 1e6;
@@ -42,7 +50,14 @@ contract PassRegistryTest is Test, ERC1155Holder {
             "ipfs://x/{id}"
         );
 
-        registry.registerFlight(flightId, "SQ962", "SIN-CGK", uint64(block.timestamp + 6 hours), 30);
+        registry.registerFlight(
+            flightId,
+            "SQ962",
+            "SIN-CGK",
+            uint64(block.timestamp + 4 hours),
+            uint64(block.timestamp + 6 hours),
+            30
+        );
         protection = FlightMarket(factory.createProtection(flightId));
 
         usdg.mint(address(this), 1_000 * UNIT);
@@ -170,5 +185,35 @@ contract PassRegistryTest is Test, ERC1155Holder {
         vm.prank(passenger);
         vm.expectRevert(PassExpired.selector);
         passes.register(flightId, passHash, expiry, signature);
+    }
+
+    function _verify(address wallet) internal {
+        uint64 expiry = uint64(block.timestamp + 1 hours);
+        bytes memory signature = _sign(wallet, passHash, expiry);
+        vm.prank(wallet);
+        passes.register(flightId, passHash, expiry, signature);
+    }
+
+    function test_StakeIsCappedPerPassenger() public {
+        _verify(passenger);
+        usdg.mint(passenger, 200 * UNIT);
+
+        vm.startPrank(passenger);
+        protection.buy(Outcome.Delayed, 150 * UNIT, 0);
+        protection.buy(Outcome.OnTime, 50 * UNIT, 0);
+        vm.expectRevert(StakeLimitExceeded.selector);
+        protection.buy(Outcome.Delayed, 1, 0);
+        vm.stopPrank();
+    }
+
+    function test_PositionsCannotBeTransferred() public {
+        _verify(passenger);
+        vm.startPrank(passenger);
+        protection.buy(Outcome.Delayed, 10 * UNIT, 0);
+        OutcomeToken token = protection.outcome();
+        uint256 balance = token.balanceOf(passenger, 1);
+        vm.expectRevert(NotTransferable.selector);
+        token.safeTransferFrom(passenger, other, 1, balance, "");
+        vm.stopPrank();
     }
 }

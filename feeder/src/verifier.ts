@@ -88,7 +88,7 @@ async function sign({ flightId, wallet, barcode }: PassRequest) {
   if (pass.from !== from || pass.to !== to) {
     throw new Rejected(422, `This pass is for ${pass.from} → ${pass.to}, not ${from} → ${to}.`);
   }
-  const gap = Math.abs(pass.dayOfYear - dayOfYearUtc(Number(flight.scheduledArrival)));
+  const gap = Math.abs(pass.dayOfYear - dayOfYearUtc(Number(flight.scheduledDeparture)));
   if (gap > 1 && gap < 364) throw new Rejected(422, "This pass is for a different day.");
 
   const passHash = keccak256(

@@ -34,6 +34,7 @@ contract FlightMarketTest is Test {
     FlightMarket internal market;
 
     bytes32 internal flightId;
+    uint64 internal scheduledDeparture;
     uint64 internal scheduledArrival;
 
     address internal lp = address(0xA11CE);
@@ -57,8 +58,11 @@ contract FlightMarketTest is Test {
         );
 
         flightId = keccak256("SQ956-2026-10-01");
+        scheduledDeparture = uint64(block.timestamp + 30 minutes);
         scheduledArrival = uint64(block.timestamp + 2 hours);
-        registry.registerFlight(flightId, "SQ956", "SIN-CGK", scheduledArrival, THRESHOLD);
+        registry.registerFlight(
+            flightId, "SQ956", "SIN-CGK", scheduledDeparture, scheduledArrival, THRESHOLD
+        );
         market = FlightMarket(factory.createProtection(flightId));
 
         usdc.mint(lp, 1_000_000 * UNIT);
@@ -176,11 +180,14 @@ contract FlightMarketTest is Test {
         oracle.postResolution(flightId, 150, true);
     }
 
-    function test_TradingClosesAtScheduledArrival() public {
+    function test_TradingClosesAtScheduledDeparture() public {
         vm.prank(lp);
         market.addLiquidity(1_000 * UNIT);
 
-        vm.warp(scheduledArrival);
+        vm.warp(scheduledDeparture - 1);
+        assertTrue(market.isTrading());
+
+        vm.warp(scheduledDeparture);
         assertFalse(market.isTrading());
 
         vm.prank(trader);

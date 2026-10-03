@@ -5,7 +5,7 @@ import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
 import { IFlightRegistry } from "../interfaces/IFlightRegistry.sol";
 import { Flight } from "../types/FlightTypes.sol";
-import { FlightExists, FlightUnknown, ZeroAddress } from "../lib/Errors.sol";
+import { FlightExists, FlightUnknown, InvalidRange, ZeroAddress } from "../lib/Errors.sol";
 
 contract FlightRegistry is IFlightRegistry, Ownable {
     mapping(bytes32 => Flight) private _flights;
@@ -16,6 +16,7 @@ contract FlightRegistry is IFlightRegistry, Ownable {
         bytes32 indexed flightId,
         string number,
         string route,
+        uint64 scheduledDeparture,
         uint64 scheduledArrival,
         uint16 delayThresholdMinutes
     );
@@ -28,14 +29,19 @@ contract FlightRegistry is IFlightRegistry, Ownable {
         bytes32 flightId,
         string calldata number,
         string calldata route,
+        uint64 scheduledDeparture,
         uint64 scheduledArrival,
         uint16 delayThresholdMinutes
     ) external onlyOwner {
         if (_known[flightId]) revert FlightExists();
-        _flights[flightId] = Flight(number, route, scheduledArrival, delayThresholdMinutes);
+        if (scheduledDeparture >= scheduledArrival) revert InvalidRange();
+        _flights[flightId] =
+            Flight(number, route, scheduledDeparture, scheduledArrival, delayThresholdMinutes);
         _known[flightId] = true;
         _ids.push(flightId);
-        emit FlightRegistered(flightId, number, route, scheduledArrival, delayThresholdMinutes);
+        emit FlightRegistered(
+            flightId, number, route, scheduledDeparture, scheduledArrival, delayThresholdMinutes
+        );
     }
 
     function getFlight(bytes32 flightId) external view returns (Flight memory) {

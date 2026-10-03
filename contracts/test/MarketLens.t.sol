@@ -42,7 +42,7 @@ contract MarketLensTest is Test {
         lens = new MarketLens(factory);
 
         arrival = uint64(block.timestamp + 6 hours);
-        registry.registerFlight(flightId, "SQ956", "SIN-CGK", arrival, 120);
+        registry.registerFlight(flightId, "SQ956", "SIN-CGK", arrival - 2 hours, arrival, 120);
         protection = FlightMarket(factory.createProtection(flightId));
         range = FlightMarket(factory.createRange(flightId, arrival, arrival + 10 minutes));
 

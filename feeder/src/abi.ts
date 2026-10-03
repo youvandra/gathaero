@@ -35,6 +35,11 @@ export const flightMarketAbi = [
         "internalType": "uint16"
       },
       {
+        "name": "scheduledDeparture_",
+        "type": "uint64",
+        "internalType": "uint64"
+      },
+      {
         "name": "scheduledArrival_",
         "type": "uint64",
         "internalType": "uint64"
@@ -66,6 +71,19 @@ export const flightMarketAbi = [
       }
     ],
     "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "MAX_STAKE",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -524,7 +542,39 @@ export const flightMarketAbi = [
   },
   {
     "type": "function",
+    "name": "scheduledDeparture",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "shares",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "staked",
     "inputs": [
       {
         "name": "",
@@ -853,6 +903,11 @@ export const flightMarketAbi = [
   {
     "type": "error",
     "name": "SlippageExceeded",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "StakeLimitExceeded",
     "inputs": []
   },
   {
@@ -1390,6 +1445,11 @@ export const marketLensAbi = [
             "internalType": "string"
           },
           {
+            "name": "scheduledDeparture",
+            "type": "uint64",
+            "internalType": "uint64"
+          },
+          {
             "name": "scheduledArrival",
             "type": "uint64",
             "internalType": "uint64"
@@ -1572,6 +1632,11 @@ export const marketLensAbi = [
             "name": "route",
             "type": "string",
             "internalType": "string"
+          },
+          {
+            "name": "scheduledDeparture",
+            "type": "uint64",
+            "internalType": "uint64"
           },
           {
             "name": "scheduledArrival",
@@ -2335,6 +2400,11 @@ export const flightRegistryAbi = [
             "internalType": "string"
           },
           {
+            "name": "scheduledDeparture",
+            "type": "uint64",
+            "internalType": "uint64"
+          },
+          {
             "name": "scheduledArrival",
             "type": "uint64",
             "internalType": "uint64"
@@ -2380,6 +2450,11 @@ export const flightRegistryAbi = [
         "name": "route",
         "type": "string",
         "internalType": "string"
+      },
+      {
+        "name": "scheduledDeparture",
+        "type": "uint64",
+        "internalType": "uint64"
       },
       {
         "name": "scheduledArrival",
@@ -2438,6 +2513,12 @@ export const flightRegistryAbi = [
         "internalType": "string"
       },
       {
+        "name": "scheduledDeparture",
+        "type": "uint64",
+        "indexed": false,
+        "internalType": "uint64"
+      },
+      {
         "name": "scheduledArrival",
         "type": "uint64",
         "indexed": false,
@@ -2479,6 +2560,11 @@ export const flightRegistryAbi = [
   {
     "type": "error",
     "name": "FlightUnknown",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidRange",
     "inputs": []
   },
   {
@@ -3786,6 +3872,11 @@ export const outcomeTokenAbi = [
   {
     "type": "error",
     "name": "NotMarket",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotTransferable",
     "inputs": []
   },
   {
