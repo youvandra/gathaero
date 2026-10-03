@@ -91,7 +91,10 @@ Verified end-to-end on local anvil: list → faucet → buy protection → resol
 Deploy block `315241943`, deployer/operator `0x9F846D2054689a439DA8D0619f37F6c70Db03597`.
 10 real SIN departures listed from AeroDataBox (3–4 Oct). TR884 and SQ638 were registered with the
 previous day's leg before the leg-selection fix; they have no markets and the app hides them.
-The resolver (`npm run resolve -- --watch`) runs on the operator's Mac — it stops if that machine sleeps.
+The resolver runs on the VPS as systemd unit `gathaero-resolver` (`~/gathaero-feeder`, `.env` mode 600,
+MemoryMax 400M, Restart=always). Logs: `journalctl -u gathaero-resolver -f`. To update: rsync `feeder/`
+(without `node_modules`/`.env`) then `sudo systemctl restart gathaero-resolver`. Never run a second
+resolver with the same key — concurrent nonces collide.
 
 ## Not done yet
 - Deploy to Arbitrum Sepolia (needs funded deployer key) and fill `app/.env`.
