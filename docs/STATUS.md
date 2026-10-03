@@ -54,7 +54,10 @@ Tests: `forge test` → **27/27 pass**.
 - All dashboard data is on-chain via `MarketLens` (no mocks). Hooks in `features/market/`:
   `useFlights`, `usePositions`, `useTrades` (Bought logs from `VITE_DEPLOY_BLOCK`), `useTransact`
   (switch chain → approve if needed → write → wait → refetch), `useCollateralBalance`.
-- Wallet button shows USDG balance; clicking it mints 1,000 test USDG.
+- `/app/*` requires a connected wallet: otherwise `/connect?next=…`; Disconnect returns to `/`.
+- Home KPIs, Positions, Vault "your liquidity" and boarding passes are per connected wallet.
+- Dollar amounts use en-US grouping (`$35,295.00`) via `lib/format.ts`.
+- Wallet button shows USDG balance; clicking it mints 1,000 test USDG (`VITE_FAUCET=false` hides it).
 - Times shown in UTC.
 - ABIs: `contracts/script/export-abis.sh` regenerates `app/src/lib/abi/generated.ts` and `feeder/src/abi.ts`.
 
@@ -79,9 +82,9 @@ Verified end-to-end on local anvil: list → faucet → buy protection → resol
 - `RAPIDAPI_KEY` for real schedules/resolution; `flights.json` times are estimates until then.
 - CRE workflow typechecks against cre-sdk 1.23 but has not been simulated; it re-reports landed
   flights each run (the oracle rejects the duplicate) — add a finalized read before going live.
-- `cordon-ui` is a `file:../../cordon-ui` dependency outside this repo, so a fresh clone or a hosted
-  build can't install it — vendor a packed tarball or build locally and upload `dist/`.
+- `cordon-ui` is a `file:../../cordon-ui` dependency outside this repo. Decision: build locally
+  (`cd app && npm run build`, with `app/.env` pointing at Sepolia) and upload `app/dist/`; the host
+  must rewrite unknown paths to `index.html` (BrowserRouter).
 - `VITE_DEPLOY_BLOCK` must be set on public RPCs, or the trade-history log scan starts at block 0.
-- Landing testimonial (name + pravatar photo) is placeholder copy.
 - Boarding pass check is client-side only (localStorage).
 - No sell/exit before settlement (CPMM has no `sell`).
