@@ -24,7 +24,7 @@ import { PredictionBuckets } from "../../features/dashboard/PredictionBuckets";
 import { ProbabilityPanel } from "../../features/dashboard/ProbabilityPanel";
 import { DELAYED, quoteShares, type FlightMarket } from "../../features/market/model";
 import { probabilitySeries, useTrades } from "../../features/market/useActivity";
-import { useBoardingPass } from "../../features/market/useBoardingPass";
+import { requestAttestation, usePassenger } from "../../features/market/useBoardingPass";
 import { pickFlight, useFlights } from "../../features/market/useFlights";
 import { useTransact } from "../../features/market/useTransact";
 import { formatUsdc, parseAmount, usd, withSlippage } from "../../lib/format";
@@ -93,18 +93,17 @@ export function MarketDetailPage() {
 function MarketDetail({ market }: { market: FlightMarket }) {
   const navigate = useNavigate();
   const { notify } = useToast();
-  const { isConnected } = useAccount();
-  const { buy, refund, pending } = useTransact();
+  const { isConnected, address } = useAccount();
+  const { buy, refund, registerPass, pending } = useTransact();
 
   const [tab, setTab] = useState<Tab>("protection");
   const [buyOpen, setBuyOpen] = useState(false);
   const [amount, setAmount] = useState("10");
   const [passOpen, setPassOpen] = useState(false);
-  const [reference, setReference] = useState("");
-  const [passMode, setPassMode] = useState<"scan" | "manual">("scan");
+  const [checking, setChecking] = useState(false);
 
-  const { isVerified, verify } = useBoardingPass();
-  const verified = isVerified(market.code);
+  const { isPassenger, gated } = usePassenger(market.id);
+  const verified = isPassenger || !gated;
 
   const protection = market.protection;
   const { data: trades = [] } = useTrades(protection ? [protection.address] : []);
@@ -138,32 +137,45 @@ function MarketDetail({ market }: { market: FlightMarket }) {
   };
 
   const handleScan = useCallback(
-    (text: string) => {
+    async (text: string) => {
+      setPassOpen(false);
       const pass = parseBoardingPass(text);
       if (!pass) {
         notify({
           tone: "caution",
           title: "That isn't a boarding pass barcode",
-          children: "Scan the barcode on your boarding pass, or enter your booking reference.",
+          children: "Scan the barcode printed on your boarding pass or shown in your airline app.",
         });
-        setPassOpen(false);
         return;
       }
       const check = checkPassForMarket(pass, market);
       if (!check.ok) {
         notify({ tone: "caution", title: "Boarding pass doesn't match", children: check.reason });
-        setPassOpen(false);
         return;
       }
-      verify(market.code, pass.bookingReference);
-      notify({
-        tone: "positive",
-        title: "Boarding pass verified",
-        children: `${pass.passenger} · ${pass.flight}${pass.seat ? ` · seat ${pass.seat}` : ""}`,
-      });
-      setPassOpen(false);
+      if (!address) return;
+
+      setChecking(true);
+      try {
+        const attestation = await requestAttestation(market.id, address, text);
+        await registerPass(
+          market.id,
+          attestation.passHash,
+          BigInt(attestation.expiry),
+          attestation.signature,
+        );
+        notify({
+          tone: "positive",
+          title: "Boarding pass verified",
+          children: `${attestation.passenger} · ${attestation.flight}${attestation.seat ? ` · seat ${attestation.seat}` : ""}`,
+        });
+      } catch (error) {
+        notify(errorToast(error));
+      } finally {
+        setChecking(false);
+      }
     },
-    [market, notify, verify],
+    [address, market, notify, registerPass],
   );
 
   const handleUnreadable = useCallback(
@@ -171,25 +183,10 @@ function MarketDetail({ market }: { market: FlightMarket }) {
       notify({
         tone: "caution",
         title: "No barcode found",
-        children:
-          "Use a sharp photo where the whole barcode is visible, or enter your booking reference.",
+        children: "Use a sharp photo where the whole barcode is visible, then try again.",
       }),
     [notify],
   );
-
-  const confirmVerify = () => {
-    if (reference.trim().length < 5) {
-      notify({ tone: "caution", title: "Enter a valid booking reference" });
-      return;
-    }
-    verify(market.code, reference.trim().toUpperCase());
-    notify({
-      tone: "positive",
-      title: "Boarding pass verified",
-      children: `${market.code} · insurable interest confirmed`,
-    });
-    setPassOpen(false);
-  };
 
   const confirmRefund = async () => {
     if (!protection) return;
@@ -254,7 +251,7 @@ function MarketDetail({ market }: { market: FlightMarket }) {
             Protection is a hedge, so you must be a passenger on this flight — insurable interest.
             Verify to unlock buying.
           </span>
-          <Button variant="secondary" block onClick={() => setPassOpen(true)}>
+          <Button variant="secondary" block loading={checking} onClick={() => setPassOpen(true)}>
             Verify boarding pass
           </Button>
         </Notice>
@@ -452,34 +449,16 @@ function MarketDetail({ market }: { market: FlightMarket }) {
             <Button variant="ghost" onClick={() => setPassOpen(false)}>
               Cancel
             </Button>
-            {passMode === "manual" ? (
-              <Button variant="primary" onClick={confirmVerify}>
-                Verify
-              </Button>
-            ) : null}
           </>
         }
       >
         <div className="flex flex-col gap-3">
-          <Segmented
-            value={passMode}
-            onValueChange={(value) => setPassMode(value as "scan" | "manual")}
-            options={[
-              { value: "scan", label: "Scan barcode" },
-              { value: "manual", label: "Booking reference" },
-            ]}
-          />
-          {passMode === "scan" ? (
-            passOpen ? (
-              <BoardingPassScanner onScan={handleScan} onUnreadable={handleUnreadable} />
-            ) : null
-          ) : (
-            <TextField
-              placeholder="Booking reference — e.g. ABC123"
-              value={reference}
-              onChange={(event) => setReference(event.target.value)}
+          {passOpen ? (
+            <BoardingPassScanner
+              onScan={(text) => void handleScan(text)}
+              onUnreadable={handleUnreadable}
             />
-          )}
+          ) : null}
           <p
             style={{
               margin: 0,
@@ -487,8 +466,8 @@ function MarketDetail({ market }: { market: FlightMarket }) {
               fontSize: "var(--cordon-size-caption)",
             }}
           >
-            We confirm you are a passenger on this flight. This enforces insurable interest —
-            nothing else is stored on-chain.
+            We check the barcode against this flight, then you confirm one transaction that links
+            this pass to your wallet. Only a hash of your booking is stored on-chain.
           </p>
         </div>
       </Modal>

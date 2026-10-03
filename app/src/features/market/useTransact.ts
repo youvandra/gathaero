@@ -1,11 +1,11 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import type { Address, Hash } from "viem";
+import type { Address, Hash, Hex } from "viem";
 import { useAccount, usePublicClient, useSwitchChain, useWriteContract } from "wagmi";
 
 import { targetChain } from "../../config/chains";
 import { env } from "../../config/env";
-import { collateralAbi, flightMarketAbi } from "../../lib/abi";
+import { collateralAbi, flightMarketAbi, passRegistryAbi } from "../../lib/abi";
 import { AppError } from "../../lib/errors";
 
 export const FAUCET_AMOUNT = 1_000_000_000n;
@@ -114,6 +114,15 @@ export function useTransact() {
           abi: flightMarketAbi,
           functionName: "removeLiquidity",
           args: [shares],
+        }),
+      ),
+    registerPass: (flightId: Hex, passHash: Hex, expiry: bigint, signature: Hex) =>
+      run(() =>
+        writeContractAsync({
+          address: env.contracts.passRegistry,
+          abi: passRegistryAbi,
+          functionName: "register",
+          args: [flightId, passHash, expiry, signature],
         }),
       ),
     redeem: (market: Address) => write(market, "redeem"),

@@ -1,52 +1,55 @@
-import { useCallback, useState } from "react";
-import { useAccount } from "wagmi";
+import type { Hex } from "viem";
+import { useAccount, useReadContract } from "wagmi";
 
-type PassStore = Record<string, string>;
+import { env, ZERO_ADDRESS } from "../../config/env";
+import { passRegistryAbi } from "../../lib/abi";
+import { AppError } from "../../lib/errors";
 
-const storageKey = (address: string): string => `gathaero.boardingPass.${address.toLowerCase()}`;
+export type PassAttestation = {
+  passHash: Hex;
+  expiry: string;
+  signature: Hex;
+  passenger: string;
+  flight: string;
+  seat: string;
+};
 
-function readStore(address?: string): PassStore {
-  if (!address) return {};
-  try {
-    const raw = localStorage.getItem(storageKey(address));
-    return raw ? (JSON.parse(raw) as PassStore) : {};
-  } catch {
-    return {};
-  }
-}
-
-function writeStore(address: string, store: PassStore): void {
-  try {
-    localStorage.setItem(storageKey(address), JSON.stringify(store));
-  } catch {
-    return;
-  }
-}
-
-export function useBoardingPass() {
+export function usePassenger(flightId: Hex) {
   const { address } = useAccount();
-  const [owner, setOwner] = useState(address);
-  const [store, setStore] = useState<PassStore>(() => readStore(address));
+  const enabled = env.contracts.passRegistry !== ZERO_ADDRESS && Boolean(address);
+  const { data } = useReadContract({
+    address: env.contracts.passRegistry,
+    abi: passRegistryAbi,
+    functionName: "isPassenger",
+    args: address ? [flightId, address] : undefined,
+    query: { enabled },
+  });
+  return { isPassenger: data === true, gated: env.contracts.passRegistry !== ZERO_ADDRESS };
+}
 
-  if (owner !== address) {
-    setOwner(address);
-    setStore(readStore(address));
+export async function requestAttestation(
+  flightId: Hex,
+  wallet: Hex,
+  barcode: string,
+): Promise<PassAttestation> {
+  if (!env.verifierUrl) {
+    throw new AppError("Verifier unavailable", "Boarding pass checks are not configured.");
   }
-
-  const isVerified = useCallback(
-    (flightCode: string) => Boolean(store[flightCode.toUpperCase()]),
-    [store],
-  );
-
-  const verify = useCallback(
-    (flightCode: string, reference: string) => {
-      if (!address) return;
-      const next = { ...readStore(address), [flightCode.toUpperCase()]: reference };
-      writeStore(address, next);
-      setStore(next);
-    },
-    [address],
-  );
-
-  return { isVerified, verify };
+  let response: Response;
+  try {
+    response = await fetch(`${env.verifierUrl}/passes`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ flightId, wallet, barcode }),
+    });
+  } catch {
+    throw new AppError("Verifier unreachable", "Check your connection and try again.");
+  }
+  const body = (await response.json().catch(() => ({}))) as Partial<PassAttestation> & {
+    error?: string;
+  };
+  if (!response.ok || !body.signature || !body.passHash || !body.expiry) {
+    throw new AppError("Boarding pass rejected", body.error ?? "Try scanning again.");
+  }
+  return body as PassAttestation;
 }

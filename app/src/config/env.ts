@@ -17,10 +17,12 @@ export const env = {
   walletConnectProjectId: readString(import.meta.env.VITE_WALLETCONNECT_PROJECT_ID, ""),
   deployBlock: readBigInt(import.meta.env.VITE_DEPLOY_BLOCK),
   faucet: import.meta.env.VITE_FAUCET !== "false",
+  verifierUrl: readString(import.meta.env.VITE_VERIFIER_URL, ""),
   contracts: {
     marketFactory: readAddress(import.meta.env.VITE_MARKET_FACTORY),
     marketLens: readAddress(import.meta.env.VITE_MARKET_LENS),
     collateral: readAddress(import.meta.env.VITE_COLLATERAL),
+    passRegistry: readAddress(import.meta.env.VITE_PASS_REGISTRY),
   },
 } as const;
 

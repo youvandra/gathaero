@@ -29,6 +29,11 @@ export function BoardingPassScanner({
 }) {
   const video = useRef<HTMLVideoElement>(null);
   const photoInput = useRef<HTMLInputElement>(null);
+  const handlers = useRef({ onScan, onUnreadable });
+
+  useEffect(() => {
+    handlers.current = { onScan, onUnreadable };
+  });
   const [status, setStatus] = useState<Status>("starting");
 
   useEffect(() => {
@@ -44,7 +49,7 @@ export function BoardingPassScanner({
           (result) => {
             if (!result) return;
             controls?.stop();
-            onScan(result.getText());
+            handlers.current.onScan(result.getText());
           },
         );
       })
@@ -61,7 +66,7 @@ export function BoardingPassScanner({
       cancelled = true;
       controls?.stop();
     };
-  }, [onScan]);
+  }, []);
 
   const readPhoto = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -71,9 +76,9 @@ export function BoardingPassScanner({
     try {
       const reader = await createReader();
       const result = await reader.decodeFromImageUrl(url);
-      onScan(result.getText());
+      handlers.current.onScan(result.getText());
     } catch {
-      onUnreadable();
+      handlers.current.onUnreadable();
     } finally {
       URL.revokeObjectURL(url);
     }

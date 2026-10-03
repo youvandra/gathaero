@@ -64,6 +64,18 @@ const REVERTS: Record<string, Explained> = {
     message: "You're trying to withdraw more than this wallet holds.",
   },
   ZeroAmount: { title: "Enter an amount", message: "The amount must be more than zero." },
+  NotPassenger: {
+    title: "Boarding pass needed",
+    message: "Verify your boarding pass for this flight before buying protection.",
+  },
+  PassAlreadyUsed: {
+    title: "Boarding pass already used",
+    message: "This boarding pass is linked to another wallet.",
+  },
+  PassExpired: {
+    title: "Verification expired",
+    message: "Scan your boarding pass again, then confirm in your wallet within 15 minutes.",
+  },
   Unauthorized: {
     title: "Not allowed",
     message: "Only the market operator can do this.",
