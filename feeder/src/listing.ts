@@ -30,6 +30,25 @@ const DEFAULT_BUCKETS: Bucket[] = [
 const PROTECTION_LIQUIDITY = parseUnits("2000", 6);
 const RANGE_LIQUIDITY = parseUnits("500", 6);
 
+async function topUp(clients: Clients, config: FeederConfig, needed: bigint): Promise<void> {
+  const balance = await clients.publicClient.readContract({
+    address: config.contracts.collateral,
+    abi: mockERC20Abi,
+    functionName: "balanceOf",
+    args: [clients.account.address],
+  });
+  if (balance >= needed) return;
+  await confirm(
+    clients,
+    clients.walletClient.writeContract({
+      address: config.contracts.collateral,
+      abi: mockERC20Abi,
+      functionName: "mint",
+      args: [clients.account.address, needed - balance],
+    }),
+  );
+}
+
 async function seedMarket(
   clients: Clients,
   config: FeederConfig,
@@ -37,35 +56,36 @@ async function seedMarket(
   liquidity: bigint,
   delayedProbability: number,
 ): Promise<void> {
+  const trade = seedTradeFor(liquidity, delayedProbability);
+  await topUp(clients, config, liquidity + (trade?.amount ?? 0n));
   await confirm(
     clients,
     clients.walletClient.writeContract({
-    address: config.contracts.collateral,
-    abi: mockERC20Abi,
-    functionName: "approve",
-    args: [market, maxUint256],
-  }),
+      address: config.contracts.collateral,
+      abi: mockERC20Abi,
+      functionName: "approve",
+      args: [market, maxUint256],
+    }),
   );
   await confirm(
     clients,
     clients.walletClient.writeContract({
-    address: market,
-    abi: flightMarketAbi,
-    functionName: "addLiquidity",
-    args: [liquidity],
-  }),
+      address: market,
+      abi: flightMarketAbi,
+      functionName: "addLiquidity",
+      args: [liquidity],
+    }),
   );
 
-  const trade = seedTradeFor(liquidity, delayedProbability);
   if (!trade || trade.amount === 0n) return;
   await confirm(
     clients,
     clients.walletClient.writeContract({
-    address: market,
-    abi: flightMarketAbi,
-    functionName: "buy",
-    args: [trade.outcome, trade.amount],
-  }),
+      address: market,
+      abi: flightMarketAbi,
+      functionName: "buy",
+      args: [trade.outcome, trade.amount],
+    }),
   );
 }
 
@@ -129,16 +149,24 @@ async function list(clients: Clients, config: FeederConfig, listing: Listing): P
   }
 
   const schedule = await resolveSchedule(config, listing);
-  console.log(`${listing.number} ${listing.date} ${schedule.route} arr ${new Date(schedule.scheduledArrival * 1000).toISOString()}`);
+  console.log(
+    `${listing.number} ${listing.date} ${schedule.route} arr ${new Date(schedule.scheduledArrival * 1000).toISOString()}`,
+  );
 
   await confirm(
     clients,
     clients.walletClient.writeContract({
-    address: config.contracts.registry,
-    abi: flightRegistryAbi,
-    functionName: "registerFlight",
-    args: [flightId, listing.number, schedule.route, BigInt(schedule.scheduledArrival), listing.delayThresholdMinutes],
-  }),
+      address: config.contracts.registry,
+      abi: flightRegistryAbi,
+      functionName: "registerFlight",
+      args: [
+        flightId,
+        listing.number,
+        schedule.route,
+        BigInt(schedule.scheduledArrival),
+        listing.delayThresholdMinutes,
+      ],
+    }),
   );
 
   const protection = await createProtection(clients, config, flightId);
@@ -158,17 +186,6 @@ async function main(): Promise<void> {
   const config = loadConfig();
   const clients = clientsFor(config);
   const listings = flights as Listing[];
-
-  const budget = parseUnits("10000", 6) * BigInt(listings.length);
-  await confirm(
-    clients,
-    clients.walletClient.writeContract({
-    address: config.contracts.collateral,
-    abi: mockERC20Abi,
-    functionName: "mint",
-    args: [clients.account.address, budget],
-  }),
-  );
 
   for (const listing of listings) {
     await list(clients, config, listing);

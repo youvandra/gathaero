@@ -41,15 +41,29 @@ const localDateOf = (flight: FlightView, candidates: string[]): string | undefin
 
 function candidateDates(scheduledArrival: bigint): string[] {
   const base = Number(scheduledArrival) * 1000;
-  return [-1, 0, 1].map((offset) => new Date(base + offset * 86_400_000).toISOString().slice(0, 10));
+  return [-1, 0, 1].map((offset) =>
+    new Date(base + offset * 86_400_000).toISOString().slice(0, 10),
+  );
 }
 
-async function settle(clients: Clients, config: FeederConfig, flight: FlightView, verdict: Verdict) {
+async function settle(
+  clients: Clients,
+  config: FeederConfig,
+  flight: FlightView,
+  verdict: Verdict,
+) {
   const open = openMarketsOf(flight);
 
   if (verdict.kind === "void") {
     for (const market of open) {
-      await confirm(clients, clients.walletClient.writeContract({ address: market, abi: flightMarketAbi, functionName: "resolveVoid" }));
+      await confirm(
+        clients,
+        clients.walletClient.writeContract({
+          address: market,
+          abi: flightMarketAbi,
+          functionName: "resolveVoid",
+        }),
+      );
     }
     console.log(`  voided ${open.length} markets`);
     return;
@@ -69,7 +83,14 @@ async function settle(clients: Clients, config: FeederConfig, flight: FlightView
 
   if (verdict.kind === "landed" || flight.finalized) {
     for (const market of open) {
-      await confirm(clients, clients.walletClient.writeContract({ address: market, abi: flightMarketAbi, functionName: "resolve" }));
+      await confirm(
+        clients,
+        clients.walletClient.writeContract({
+          address: market,
+          abi: flightMarketAbi,
+          functionName: "resolve",
+        }),
+      );
     }
     console.log(`  resolved ${open.length} markets`);
   }
@@ -82,7 +103,8 @@ async function sweep(clients: Clients, config: FeederConfig, manual: ManualVerdi
     if (openMarketsOf(flight).length === 0) continue;
 
     if (manual) {
-      if (manual.flightId === flight.flightId) await settle(clients, config, flight, manual.verdict);
+      if (manual.flightId === flight.flightId)
+        await settle(clients, config, flight, manual.verdict);
       continue;
     }
 
