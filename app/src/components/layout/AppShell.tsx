@@ -18,9 +18,10 @@ function Brand() {
   return (
     <Link
       to="/"
-      className="inline-flex items-center font-semibold no-underline"
+      className="inline-flex items-center gap-2 font-semibold no-underline"
       style={{ color: "var(--cordon-ink)" }}
     >
+      <img src="/icon.svg" alt="" width={26} height={26} style={{ borderRadius: 7 }} />
       gathæro
     </Link>
   );

@@ -16,7 +16,10 @@ export function Screen({ aside, children }: { aside?: ReactNode; children: React
       style={{ background: "var(--cordon-paper)", color: "var(--cordon-ink)" }}
     >
       <header className="flex items-center justify-between gap-4 px-6 py-5 sm:px-10">
-        <span className="text-xl font-semibold">gathæro</span>
+        <span className="inline-flex items-center gap-2.5 text-xl font-semibold">
+          <img src="/icon.svg" alt="" width={32} height={32} style={{ borderRadius: 8 }} />
+          gathæro
+        </span>
         <span className="flex items-center gap-3 text-sm" style={muted}>
           {aside}
         </span>
