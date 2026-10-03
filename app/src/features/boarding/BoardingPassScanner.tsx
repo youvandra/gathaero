@@ -23,9 +23,15 @@ async function createReader() {
 export function BoardingPassScanner({
   onScan,
   onUnreadable,
+  subject = "the boarding pass",
+  square = false,
 }: {
   onScan: (text: string) => void;
   onUnreadable: () => void;
+  /** What is being scanned, used in the fallback copy. */
+  subject?: string;
+  /** A square guide for QR codes instead of the wide boarding-pass strip. */
+  square?: boolean;
 }) {
   const video = useRef<HTMLVideoElement>(null);
   const photoInput = useRef<HTMLInputElement>(null);
@@ -101,12 +107,16 @@ export function BoardingPassScanner({
             className="absolute inset-0 flex items-center justify-center p-4 text-center text-sm"
             style={{ color: "var(--cordon-paper)" }}
           >
-            Camera unavailable. Allow camera access, or upload a photo of the boarding pass.
+            Camera unavailable. Allow camera access, or upload a photo of {subject}.
           </div>
         ) : null}
         {status === "scanning" ? (
           <div
-            className="pointer-events-none absolute inset-x-6 top-1/2 h-24 -translate-y-1/2 rounded-lg border-2"
+            className={
+              square
+                ? "pointer-events-none absolute left-1/2 top-1/2 h-1/2 aspect-square -translate-x-1/2 -translate-y-1/2 rounded-lg border-2"
+                : "pointer-events-none absolute inset-x-6 top-1/2 h-24 -translate-y-1/2 rounded-lg border-2"
+            }
             style={{ borderColor: "var(--cordon-paper)" }}
           />
         ) : null}

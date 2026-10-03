@@ -81,8 +81,9 @@ const REVERTS: Record<string, Explained> = {
     message: "Scan your boarding pass again, then confirm in your wallet within 15 minutes.",
   },
   Unauthorized: {
-    title: "Not allowed",
-    message: "Only the market operator can do this.",
+    title: "Wrong wallet",
+    message:
+      "This wallet can't do that. If you started at a kiosk, connect the wallet whose address you showed there.",
   },
 };
 

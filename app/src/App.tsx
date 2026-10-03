@@ -4,6 +4,7 @@ import { Providers } from "./app/Providers";
 import { AppLayout } from "./components/layout/AppShell";
 import { LandingPage } from "./landing/LandingPage";
 import { ConnectPage } from "./pages/connect/ConnectPage";
+import { ClaimPage } from "./pages/claim/ClaimPage";
 import { KioskPage } from "./pages/kiosk/KioskPage";
 import { EarnPage } from "./pages/app/EarnPage";
 import { HomePage } from "./pages/app/HomePage";
@@ -26,6 +27,7 @@ export default function App() {
           <Route path="/docs" element={<DocsPage />} />
           <Route path="/connect" element={<ConnectPage />} />
           <Route path="/kiosk" element={<KioskPage />} />
+          <Route path="/claim" element={<ClaimPage />} />
 
           <Route path="/app" element={<AppLayout />}>
             <Route index element={<HomePage />} />
