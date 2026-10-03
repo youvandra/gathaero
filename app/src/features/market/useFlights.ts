@@ -14,7 +14,8 @@ export function useFlights() {
     query: {
       enabled: isConfigured,
       refetchInterval: REFRESH_MS,
-      select: (flights) => flights.map(toFlightMarket),
+      select: (flights) =>
+        flights.map(toFlightMarket).filter((flight) => flight.protection !== null),
     },
   });
 

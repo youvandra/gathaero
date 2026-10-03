@@ -22,7 +22,7 @@ export function LandingPage() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
-  const { flights } = useFlights();
+  const { flights, isLoading } = useFlights();
   const live = flights.filter(isLive);
   const avgDelay =
     live.length > 0 ? live.reduce((sum, f) => sum + f.delayProbability, 0) / live.length : 0;
@@ -195,7 +195,7 @@ export function LandingPage() {
                   className="text-3xl tracking-tight text-[#010101] sm:text-4xl lg:text-white"
                   style={{ fontFamily: SILKSCREEN, fontWeight: 400 }}
                 >
-                  {formatNumber(live.length)}
+                  {isLoading ? "—" : formatNumber(live.length)}
                 </div>
                 <p className="mt-3 text-sm leading-relaxed text-[#010101]/70 sm:mt-4 lg:text-white/70">
                   Flights priced and protected on Gathaero right now.

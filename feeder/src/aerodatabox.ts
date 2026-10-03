@@ -2,7 +2,7 @@ import type { RapidApi } from "./config.js";
 
 type Movement = {
   airport?: { iata?: string };
-  scheduledTime?: { utc: string };
+  scheduledTime?: { utc: string; local?: string };
   revisedTime?: { utc: string };
   runwayTime?: { utc: string };
 };
@@ -53,7 +53,13 @@ export async function fetchFlight(
   if (!response.ok) throw new Error(`AeroDataBox error ${response.status}`);
 
   const legs = (await response.json()) as AeroDataBoxFlight[];
-  const flight = legs.find((leg) => route !== undefined && routeOf(leg) === route) ?? legs[0];
+  const departsOnDate = (leg: AeroDataBoxFlight) =>
+    leg.departure.scheduledTime?.local?.startsWith(dateLocal) ?? false;
+  const matchesRoute = (leg: AeroDataBoxFlight) => route === undefined || routeOf(leg) === route;
+  const flight =
+    legs.find((leg) => departsOnDate(leg) && matchesRoute(leg)) ??
+    legs.find(departsOnDate) ??
+    legs.find(matchesRoute);
   const scheduled = flight?.arrival.scheduledTime?.utc;
   if (!flight || !scheduled) throw new Error(`No arrival schedule for ${flightNumber}`);
 
