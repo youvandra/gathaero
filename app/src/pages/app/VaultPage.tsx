@@ -13,6 +13,7 @@ import type { Column } from "cordon-ui";
 import { useState } from "react";
 import { useAccount } from "wagmi";
 
+import { TablePager } from "../../components/data/TablePager";
 import { LoadError } from "../../components/feedback/LoadError";
 import { TableSkeleton } from "../../components/feedback/Skeletons";
 import { StatTile } from "../../features/dashboard/StatTile";
@@ -22,9 +23,11 @@ import { useMarketTrends } from "../../features/market/useMarketTrends";
 import { usePositions } from "../../features/market/usePositions";
 import { useCollateralBalance } from "../../features/market/useBalance";
 import { STAGE_LABEL, useTransact } from "../../features/market/useTransact";
+import { PoolSheet } from "../../features/vault/PoolSheet";
 import { formatUsd, formatUsdc, parseAmount, usd } from "../../lib/format";
 import { errorToast } from "../../lib/errors";
 import { usePageTitle } from "../../lib/hooks/usePageTitle";
+import { usePaged } from "../../lib/hooks/usePaged";
 
 function CardTitle({ children }: { children: string }) {
   return (
@@ -73,7 +76,15 @@ function buildColumns(onAdd: (row: FlightMarket) => void, canAdd: boolean): Colu
       header: "",
       align: "end",
       cell: (row) => (
-        <Button variant="secondary" size="sm" disabled={!canAdd} onClick={() => onAdd(row)}>
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled={!canAdd}
+          onClick={(event) => {
+            event.stopPropagation();
+            onAdd(row);
+          }}
+        >
           Add
         </Button>
       ),
@@ -93,10 +104,16 @@ export function VaultPage() {
 
   const [amount, setAmount] = useState("");
   const [target, setTarget] = useState<FlightMarket | null>(null);
+  const [detail, setDetail] = useState<FlightMarket | null>(null);
 
   const pools = flights.filter((flight) => isLive(flight) && flight.protection);
   const tvl = flights.reduce((sum, f) => sum + (f.protection?.locked ?? 0n), 0n);
   const volume = flights.reduce((sum, f) => sum + (f.protection?.volume ?? 0n), 0n);
+  const paged = usePaged(pools, 8);
+  const liquidityIn = (market?: string) =>
+    positions
+      .filter((p) => p.side === "Liquidity" && p.market.toLowerCase() === market?.toLowerCase())
+      .reduce((sum, p) => sum + p.value, 0);
   const myLiquidity = positions
     .filter((p) => p.side === "Liquidity")
     .reduce((sum, p) => sum + p.value, 0);
@@ -172,14 +189,18 @@ export function VaultPage() {
         ) : error && pools.length === 0 ? (
           <LoadError what="pools" onRetry={refetch} />
         ) : (
-          <DataTable
-            columns={buildColumns(setTarget, isConnected)}
-            rows={pools}
-            rowKey={(row) => row.id}
-            density="default"
-            stickyHeader={false}
-            empty="No open pools right now. New flights are listed every day."
-          />
+          <>
+            <DataTable
+              columns={buildColumns(setTarget, isConnected)}
+              rows={paged.pageRows}
+              rowKey={(row) => row.id}
+              onRowClick={setDetail}
+              density="default"
+              stickyHeader={false}
+              empty="No open pools right now. New flights are listed every day."
+            />
+            <TablePager paged={paged} onPageChange={paged.setPage} noun="pools" />
+          </>
         )}
       </Card>
 
@@ -220,6 +241,16 @@ export function VaultPage() {
           </p>
         </div>
       </Modal>
+      <PoolSheet
+        pool={detail}
+        myLiquidity={liquidityIn(detail?.protection?.address)}
+        canAdd={isConnected}
+        onAdd={(pool) => {
+          setDetail(null);
+          setTarget(pool);
+        }}
+        onClose={() => setDetail(null)}
+      />
     </>
   );
 }

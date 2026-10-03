@@ -168,3 +168,27 @@ export function quoteShares(market: MarketSnapshot, outcome: number, amount: big
 
 /** Most one wallet can put into one market, in 6-decimal USDG. Mirrors FlightMarket.MAX_STAKE. */
 export const MAX_STAKE = 200_000_000n;
+
+/** Gate arrival reported by the oracle, as "HH:MM", once the flight has settled. */
+export function actualArrival(market: FlightMarket): string | null {
+  if (market.delayMinutes === null) return null;
+  return utcTime(market.arrivalTimestamp + market.delayMinutes * 60);
+}
+
+/** The flight a market contract belongs to, from either its protection pool or a window. */
+export function flightOfMarket(
+  flights: FlightMarket[],
+  market: string,
+): FlightMarket | undefined {
+  const target = market.toLowerCase();
+  return flights.find(
+    (flight) =>
+      flight.protection?.address.toLowerCase() === target ||
+      flight.buckets.some((bucket) => bucket.address.toLowerCase() === target),
+  );
+}
+
+export function delayLine(minutes: number): string {
+  if (minutes === 0) return "On schedule";
+  return minutes > 0 ? `${minutes} min late` : `${Math.abs(minutes)} min early`;
+}

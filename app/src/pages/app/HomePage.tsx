@@ -103,6 +103,7 @@ export function HomePage() {
             error={Boolean(error)}
             onRetry={refetch}
             empty="No flights open right now. New flights are listed every day."
+            pageSize={6}
             onSelect={(market) => openDetail(market.code)}
           />
         </Card>

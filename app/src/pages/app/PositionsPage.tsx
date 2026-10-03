@@ -3,6 +3,7 @@ import type { Column, TagTone } from "cordon-ui";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { TablePager } from "../../components/data/TablePager";
 import { LoadError } from "../../components/feedback/LoadError";
 import { TableSkeleton } from "../../components/feedback/Skeletons";
 
@@ -12,10 +13,14 @@ import {
   type Position,
   type PositionAction,
 } from "../../features/market/usePositions";
+import { flightOfMarket } from "../../features/market/model";
+import { useFlights } from "../../features/market/useFlights";
 import { useTransact } from "../../features/market/useTransact";
+import { PositionSheet } from "../../features/positions/PositionSheet";
 import { formatUsd, formatUsdc } from "../../lib/format";
 import { errorToast } from "../../lib/errors";
 import { usePageTitle } from "../../lib/hooks/usePageTitle";
+import { usePaged } from "../../lib/hooks/usePaged";
 
 const STATE_TONE: Record<Position["state"], TagTone> = {
   open: "neutral",
@@ -96,7 +101,10 @@ function buildColumns(
             size="sm"
             loading={busyKey === row.key}
             disabled={busyKey !== null && busyKey !== row.key}
-            onClick={() => onAction(row)}
+            onClick={(event) => {
+              event.stopPropagation();
+              onAction(row);
+            }}
           >
             {ACTION_LABEL[row.action]}
           </Button>
@@ -112,14 +120,17 @@ export function PositionsPage() {
   const { positions, isLoading, error, refetch } = usePositions();
   const { redeem, refund, removeLiquidity } = useTransact();
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Position | null>(null);
+  const { flights } = useFlights();
+  const paged = usePaged(positions, 10);
 
   const open = positions.filter((p) => p.state === "open");
   const claimable = positions.filter((p) => p.action !== null);
   const openValue = open.reduce((sum, p) => sum + p.value, 0);
   const claimableValue = claimable.reduce((sum, p) => sum + p.value, 0);
 
-  const handleAction = async (row: Position) => {
-    if (!row.action) return;
+  const handleAction = async (row: Position): Promise<boolean> => {
+    if (!row.action) return false;
     setBusyKey(row.key);
     try {
       if (row.action === "redeem") await redeem(row.market);
@@ -130,8 +141,10 @@ export function PositionsPage() {
         title: ACTION_DONE[row.action],
         children: `${row.flight} · ${row.label} · ${formatUsd(row.value)}`,
       });
+      return true;
     } catch (error) {
       notify(errorToast(error));
+      return false;
     } finally {
       setBusyKey(null);
     }
@@ -186,15 +199,31 @@ export function PositionsPage() {
             </Button>
           </div>
         ) : (
-          <DataTable
-            columns={columns}
-            rows={positions}
-            rowKey={(row) => row.key}
-            density="default"
-            stickyHeader={false}
-          />
+          <>
+            <DataTable
+              columns={columns}
+              rows={paged.pageRows}
+              rowKey={(row) => row.key}
+              density="default"
+              stickyHeader={false}
+              onRowClick={setSelected}
+            />
+            <TablePager paged={paged} onPageChange={paged.setPage} noun="positions" />
+          </>
         )}
       </Card>
+      <PositionSheet
+        position={selected}
+        flight={selected ? flightOfMarket(flights, selected.market) : undefined}
+        actionLabel={selected?.action ? ACTION_LABEL[selected.action] : undefined}
+        busy={selected !== null && busyKey === selected.key}
+        onAction={(row) => {
+          void handleAction(row).then((done) => {
+            if (done) setSelected(null);
+          });
+        }}
+        onClose={() => setSelected(null)}
+      />
     </>
   );
 }

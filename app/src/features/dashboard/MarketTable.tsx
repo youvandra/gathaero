@@ -1,11 +1,13 @@
 import { DataTable, Sparkline, Tag } from "cordon-ui";
 import type { Column } from "cordon-ui";
 
+import { TablePager } from "../../components/data/TablePager";
 import { LoadError } from "../../components/feedback/LoadError";
 import { TableSkeleton } from "../../components/feedback/Skeletons";
 import type { FlightMarket } from "../market/model";
 import { formatCountdown, usd } from "../../lib/format";
 import { useNow } from "../../lib/hooks/useNow";
+import { usePaged } from "../../lib/hooks/usePaged";
 import { STATUS_TONE } from "./statusTone";
 
 function buildColumns(
@@ -101,6 +103,7 @@ export function MarketTable({
   loading = false,
   error = false,
   onRetry,
+  pageSize = 10,
 }: {
   rows: FlightMarket[];
   onSelect?: (row: FlightMarket) => void;
@@ -109,20 +112,25 @@ export function MarketTable({
   loading?: boolean;
   error?: boolean;
   onRetry?: () => void;
+  pageSize?: number;
 }) {
   const now = useNow();
+  const paged = usePaged(rows, pageSize);
   if (loading) return <TableSkeleton columns={trendOf ? 7 : 6} />;
   if (error && rows.length === 0 && onRetry) return <LoadError what="markets" onRetry={onRetry} />;
 
   return (
-    <DataTable
-      columns={buildColumns(now, trendOf)}
-      rows={rows}
-      rowKey={(row) => row.id}
-      density="default"
-      stickyHeader={false}
-      onRowClick={onSelect}
-      empty={empty ?? "No markets listed yet"}
-    />
+    <>
+      <DataTable
+        columns={buildColumns(now, trendOf)}
+        rows={paged.pageRows}
+        rowKey={(row) => row.id}
+        density="default"
+        stickyHeader={false}
+        onRowClick={onSelect}
+        empty={empty ?? "No markets listed yet"}
+      />
+      <TablePager paged={paged} onPageChange={paged.setPage} noun="flights" />
+    </>
   );
 }

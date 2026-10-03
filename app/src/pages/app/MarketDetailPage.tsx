@@ -23,7 +23,14 @@ import { BoardingPassScanner } from "../../features/boarding/BoardingPassScanner
 import { STATUS_TONE } from "../../features/dashboard/statusTone";
 import { PredictionBuckets } from "../../features/dashboard/PredictionBuckets";
 import { ProbabilityPanel } from "../../features/dashboard/ProbabilityPanel";
-import { DELAYED, MAX_STAKE, quoteShares, type FlightMarket } from "../../features/market/model";
+import { ContractsSheet } from "../../features/market/ContractsSheet";
+import {
+  actualArrival,
+  DELAYED,
+  MAX_STAKE,
+  quoteShares,
+  type FlightMarket,
+} from "../../features/market/model";
 import { probabilitySeries, useTrades } from "../../features/market/useActivity";
 import { requestAttestation, usePassenger } from "../../features/market/useBoardingPass";
 import { pickFlight, useFlights } from "../../features/market/useFlights";
@@ -180,6 +187,7 @@ function MarketDetail({ market }: { market: FlightMarket }) {
   const [amount, setAmount] = useState("10");
   const [passOpen, setPassOpen] = useState(false);
   const [checking, setChecking] = useState(false);
+  const [contractsOpen, setContractsOpen] = useState(false);
 
   const { isPassenger, gated, isLoading: passLoading } = usePassenger(market.id);
   // Trading on an open flight is for its passengers. The check lives on-chain per wallet,
@@ -437,7 +445,11 @@ function MarketDetail({ market }: { market: FlightMarket }) {
             ))}
           </ol>
           <Button variant="primary" block loading={checking} onClick={() => setPassOpen(true)}>
-            {checking ? (pending ? STAGE_LABEL[stage] : "Checking your pass…") : "Scan boarding pass"}
+            {checking
+              ? pending
+                ? STAGE_LABEL[stage]
+                : "Checking your pass…"
+              : "Scan boarding pass"}
           </Button>
           <span style={caption}>
             Each boarding pass links to one wallet. Only a hash of your booking is stored.
@@ -553,7 +565,17 @@ function MarketDetail({ market }: { market: FlightMarket }) {
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle>Details</CardTitle>
+          <div className="flex items-center justify-between gap-3">
+            <CardTitle>Details</CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              iconEnd="arrow-right"
+              onClick={() => setContractsOpen(true)}
+            >
+              Contracts
+            </Button>
+          </div>
         </CardHeader>
         <CardBody>
           <Row
@@ -561,6 +583,10 @@ function MarketDetail({ market }: { market: FlightMarket }) {
             value={`${market.date} · ${market.scheduledDeparture} UTC`}
           />
           <Row label="Scheduled arrival" value={`${market.scheduledArrival} UTC`} />
+          <Row
+            label="Actual arrival (gate)"
+            value={actualArrival(market) ? `${actualArrival(market)} UTC` : "Not reported yet"}
+          />
           <Row label="Delay threshold" value={`> ${market.thresholdMinutes} min`} />
           <Row label="Volume" value={usd(market.volume)} />
           <Row label="Locked" value={usd(market.openInterest)} />
@@ -696,6 +722,11 @@ function MarketDetail({ market }: { market: FlightMarket }) {
           </p>
         </div>
       </Modal>
+      <ContractsSheet
+        market={market}
+        open={contractsOpen}
+        onClose={() => setContractsOpen(false)}
+      />
     </>
   );
 }
