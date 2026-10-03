@@ -4,7 +4,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { isHex, zeroHash, type Hex } from "viem";
 import { useAccount } from "wagmi";
 
-import { Big, BuyPanel, FlightCard, Screen, muted } from "../../features/kiosk/parts";
+import { Big, BuyPanel, FlightCard, PredictPanel, Screen, muted } from "../../features/kiosk/parts";
 import { usePassenger } from "../../features/market/useBoardingPass";
 import { useFlights } from "../../features/market/useFlights";
 import { STAGE_LABEL, useTransact } from "../../features/market/useTransact";
@@ -35,7 +35,10 @@ function Claim() {
 
   const { isPassenger, isLoading: passLoading } = usePassenger(flightId ?? zeroHash);
   const [problem, setProblem] = useState<Problem | null>(null);
-  const [bought, setBought] = useState<{ amount: string; payout: bigint } | null>(null);
+  const predict = params.get("m") === "predict";
+  const [bought, setBought] = useState<{ amount: string; payout: bigint; window?: string } | null>(
+    null,
+  );
 
   const aside = address ? <span>{shortenAddress(address)}</span> : null;
   const flight = flights.find((f) => f.id === flightId);
@@ -77,11 +80,15 @@ function Claim() {
     return (
       <Screen aside={aside}>
         <Tag tone="positive" dot>
-          Protected
+          {bought.window ? "Prediction placed" : "Protected"}
         </Tag>
-        <Big>You're covered on {flight.code}</Big>
+        <Big>
+          {bought.window ? `You called ${bought.window}` : `You're covered on ${flight.code}`}
+        </Big>
         <p className="m-0 text-xl">
-          If {flight.code} lands {flight.thresholdMinutes}+ minutes late, you receive{" "}
+          {bought.window
+            ? `If ${flight.code} lands in that window, you receive `
+            : `If ${flight.code} lands ${flight.thresholdMinutes}+ minutes late, you receive `}
           <strong>{formatUsdc(bought.payout)} USDG</strong>, paid automatically after landing.
         </p>
         <Button variant="secondary" size="lg" onClick={() => navigate("/app/positions")}>
@@ -135,13 +142,21 @@ function Claim() {
       <Tag tone="positive" dot>
         Passenger verified
       </Tag>
-      <Big>How much cover do you want?</Big>
+      <Big>{predict ? "When will it land?" : "How much cover do you want?"}</Big>
       <FlightCard flight={flight} now={now} />
-      <BuyPanel
-        flight={flight}
-        onBought={(amount, payout) => setBought({ amount, payout })}
-        onError={(title, message) => setProblem({ title, message })}
-      />
+      {predict ? (
+        <PredictPanel
+          flight={flight}
+          onBought={(window, amount, payout) => setBought({ window, amount, payout })}
+          onError={(title, message) => setProblem({ title, message })}
+        />
+      ) : (
+        <BuyPanel
+          flight={flight}
+          onBought={(amount, payout) => setBought({ amount, payout })}
+          onError={(title, message) => setProblem({ title, message })}
+        />
+      )}
     </Screen>
   );
 }

@@ -17,17 +17,18 @@ import { TablePager } from "../../components/data/TablePager";
 import { LoadError } from "../../components/feedback/LoadError";
 import { TableSkeleton } from "../../components/feedback/Skeletons";
 import { StatTile } from "../../features/dashboard/StatTile";
-import { isLive, type FlightMarket } from "../../features/market/model";
+import { type FlightMarket } from "../../features/market/model";
 import { useFlights } from "../../features/market/useFlights";
 import { useMarketTrends } from "../../features/market/useMarketTrends";
 import { usePositions } from "../../features/market/usePositions";
 import { useCollateralBalance } from "../../features/market/useBalance";
 import { STAGE_LABEL, useTransact } from "../../features/market/useTransact";
 import { PoolSheet } from "../../features/vault/PoolSheet";
-import { formatUsd, formatUsdc, parseAmount, usd } from "../../lib/format";
+import { formatCountdown, formatUsd, formatUsdc, parseAmount, usd } from "../../lib/format";
 import { errorToast } from "../../lib/errors";
 import { usePageTitle } from "../../lib/hooks/usePageTitle";
 import { usePaged } from "../../lib/hooks/usePaged";
+import { useNow } from "../../lib/hooks/useNow";
 
 function CardTitle({ children }: { children: string }) {
   return (
@@ -35,7 +36,11 @@ function CardTitle({ children }: { children: string }) {
   );
 }
 
-function buildColumns(onAdd: (row: FlightMarket) => void, canAdd: boolean): Column<FlightMarket>[] {
+function buildColumns(
+  onAdd: (row: FlightMarket) => void,
+  canAdd: boolean,
+  now: number,
+): Column<FlightMarket>[] {
   return [
     {
       id: "flight",
@@ -49,6 +54,12 @@ function buildColumns(onAdd: (row: FlightMarket) => void, canAdd: boolean): Colu
           </span>
         </span>
       ),
+    },
+    {
+      id: "closes",
+      header: "Closes in",
+      sortBy: (row) => row.departureTimestamp,
+      cell: (row) => formatCountdown(row.departureTimestamp - now),
     },
     {
       id: "locked",
@@ -106,7 +117,9 @@ export function VaultPage() {
   const [target, setTarget] = useState<FlightMarket | null>(null);
   const [detail, setDetail] = useState<FlightMarket | null>(null);
 
-  const pools = flights.filter((flight) => isLive(flight) && flight.protection);
+  // Liquidity can only be added before departure, the same moment trading closes.
+  const pools = flights.filter((flight) => flight.status === "open" && flight.protection);
+  const now = useNow();
   const tvl = flights.reduce((sum, f) => sum + (f.protection?.locked ?? 0n), 0n);
   const volume = flights.reduce((sum, f) => sum + (f.protection?.volume ?? 0n), 0n);
   const paged = usePaged(pools, 8);
@@ -191,7 +204,7 @@ export function VaultPage() {
         ) : (
           <>
             <DataTable
-              columns={buildColumns(setTarget, isConnected)}
+              columns={buildColumns(setTarget, isConnected, now)}
               rows={paged.pageRows}
               rowKey={(row) => row.id}
               onRowClick={setDetail}

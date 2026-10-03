@@ -22,7 +22,10 @@ const IDLE_RESET_SECONDS = 180;
 
 type Pass = { text: string; flightId: Hex; passenger: string; seat: string };
 
+type Mode = "protect" | "predict";
+
 type Step =
+  | { kind: "choose" }
   | { kind: "pass" }
   | { kind: "wallet"; pass: Pass }
   | { kind: "working"; label: string }
@@ -67,19 +70,20 @@ function Kiosk() {
   const { flights } = useFlights();
   const now = useNow(1000);
 
-  const [step, setStep] = useState<Step>({ kind: "pass" });
+  const [step, setStep] = useState<Step>({ kind: "choose" });
+  const [mode, setMode] = useState<Mode>("protect");
   const [typed, setTyped] = useState("");
   const [startedAt, setStartedAt] = useState(() => Math.floor(Date.now() / 1000));
 
   const reset = useCallback(() => {
-    setStep({ kind: "pass" });
+    setStep({ kind: "choose" });
     setTyped("");
     setStartedAt(Math.floor(Date.now() / 1000));
   }, []);
 
   // Clear the screen for the next traveller when a code expires or the kiosk sits idle.
   useEffect(() => {
-    if (step.kind === "pass") return;
+    if (step.kind === "choose") return;
     if (step.kind === "handoff" && now >= step.expiresAt) reset();
     else if (now - startedAt > IDLE_RESET_SECONDS) reset();
   }, [now, reset, startedAt, step]);
@@ -120,6 +124,7 @@ function Kiosk() {
       try {
         const claim = new URL("/claim", window.location.origin);
         claim.searchParams.set("f", pass.flightId);
+        if (mode === "predict") claim.searchParams.set("m", "predict");
 
         const verified = await publicClient.readContract({
           address: env.contracts.passRegistry,
@@ -147,7 +152,7 @@ function Kiosk() {
         problem(explained.title, explained.message);
       }
     },
-    [publicClient],
+    [mode, publicClient],
   );
 
   const unreadable = (what: string) => () =>
@@ -159,12 +164,80 @@ function Kiosk() {
     </Tag>
   );
 
+  if (step.kind === "choose") {
+    const pick = (next: Mode) => {
+      setMode(next);
+      setStartedAt(Math.floor(Date.now() / 1000));
+      setStep({ kind: "pass" });
+    };
+    return (
+      <Screen aside={aside}>
+        <Big>Your flight, your call</Big>
+        <p className="m-0 text-lg" style={muted}>
+          Only passengers of a flight can use it. Choose how.
+        </p>
+        <div className="grid w-full gap-4 sm:grid-cols-2">
+          {[
+            {
+              mode: "protect" as const,
+              title: "Protect my flight",
+              text: "Get paid automatically if it lands more than 30 minutes late.",
+              icon: <path d="M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6z" />,
+            },
+            {
+              mode: "predict" as const,
+              title: "Trade my flight",
+              text: "Predict when it really lands, and get paid if you're right.",
+              icon: <path d="M4 18l5-6 4 3 7-9" />,
+            },
+          ].map((option) => (
+            <button
+              key={option.mode}
+              type="button"
+              onClick={() => pick(option.mode)}
+              className="flex flex-col items-start gap-3 rounded-[var(--cordon-radius-5)] border p-6 text-left transition-transform hover:-translate-y-0.5"
+              style={{
+                borderColor: "var(--cordon-hairline)",
+                background: "var(--cordon-paper-raised)",
+                color: "var(--cordon-ink)",
+              }}
+            >
+              <span
+                className="grid h-14 w-14 place-items-center rounded-2xl"
+                style={{ background: "var(--cordon-accent-quiet)" }}
+              >
+                <svg
+                  width="30"
+                  height="30"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="var(--cordon-accent)"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  {option.icon}
+                </svg>
+              </span>
+              <span style={{ fontSize: 26, fontWeight: 700 }}>{option.title}</span>
+              <span style={muted}>{option.text}</span>
+            </button>
+          ))}
+        </div>
+      </Screen>
+    );
+  }
+
   if (step.kind === "pass") {
     return (
       <Screen aside={aside}>
-        <Big>Protect your flight from delays</Big>
+        <Big>
+          {mode === "protect" ? "Protect your flight from delays" : "Trade your own flight"}
+        </Big>
         <p className="m-0 text-lg" style={muted}>
-          Scan your boarding pass. Land 30+ minutes late and you're paid automatically.
+          {mode === "protect"
+            ? "Scan your boarding pass. Land 30+ minutes late and you're paid automatically."
+            : "Scan your boarding pass, then predict when your flight really lands."}
         </p>
         <div className="w-full max-w-md">
           <BoardingPassScanner onScan={onPass} onUnreadable={unreadable("barcode")} />
@@ -261,7 +334,8 @@ function Kiosk() {
       <HandoffQr url={step.url} />
       <p className="m-0 text-lg" style={muted}>
         Opens Gathæro{flight ? ` for ${flight.code}` : ""} in your wallet's browser. Link the pass
-        to {shortenAddress(step.wallet)} and choose your cover there.
+        to {shortenAddress(step.wallet)} and{" "}
+        {mode === "protect" ? "choose your cover" : "make your prediction"} there.
       </p>
       <p className="m-0" style={muted}>
         Code valid for {Math.floor(Math.max(0, step.expiresAt - now) / 60)}:

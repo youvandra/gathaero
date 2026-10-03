@@ -1,7 +1,7 @@
 import { Button } from "cordon-ui";
 import { useState, type ReactNode } from "react";
 
-import { DELAYED, quoteShares, type FlightMarket } from "../market/model";
+import { DELAYED, ON_TIME, quoteShares, type FlightMarket } from "../market/model";
 import { STAGE_LABEL, useTransact } from "../market/useTransact";
 import { explainError } from "../../lib/errors";
 import { formatCountdown, formatUsdc, parseAmount, withSlippage } from "../../lib/format";
@@ -137,6 +137,83 @@ export function BuyPanel({
         onClick={() => void confirm()}
       >
         {pending ? STAGE_LABEL[stage] : closed ? "Buying has closed" : `Buy for $${amount}`}
+      </Button>
+    </>
+  );
+}
+
+/** Pick an arrival window and buy its Yes side: a trade on when the flight lands. */
+export function PredictPanel({
+  flight,
+  onBought,
+  onError,
+}: {
+  flight: FlightMarket;
+  onBought: (window: string, amount: string, payout: bigint) => void;
+  onError: (title: string, message: string) => void;
+}) {
+  const { buy, pending, stage } = useTransact();
+  const open = flight.buckets.filter((bucket) => !bucket.resolved && !bucket.voided);
+  const [picked, setPicked] = useState(0);
+  const [amount, setAmount] = useState("10");
+  const bucket = open[Math.min(picked, open.length - 1)];
+  if (!bucket) return null;
+
+  const parsed = parseAmount(amount);
+  const payout = quoteShares(bucket, ON_TIME, parsed);
+  const closed = flight.status !== "open";
+  const label = `${bucket.from}–${bucket.to} UTC`;
+
+  const confirm = async () => {
+    try {
+      await buy(bucket.address, ON_TIME, parsed, withSlippage(payout));
+      onBought(label, amount, payout);
+    } catch (error) {
+      const explained = explainError(error);
+      onError(explained.title, explained.message);
+    }
+  };
+
+  return (
+    <>
+      <p className="m-0" style={muted}>
+        Scheduled to arrive {flight.scheduledArrival} UTC. When will it really land?
+      </p>
+      <div className="grid w-full grid-cols-2 gap-3">
+        {open.map((option, index) => (
+          <Button
+            key={option.address}
+            size="lg"
+            variant={index === picked ? "primary" : "secondary"}
+            onClick={() => setPicked(index)}
+          >
+            {option.from}–{option.to} · {(option.yes * 100).toFixed(0)}¢
+          </Button>
+        ))}
+      </div>
+      <div className="grid w-full grid-cols-4 gap-3">
+        {AMOUNTS.map((value) => (
+          <Button
+            key={value}
+            variant={amount === value ? "primary" : "ghost"}
+            onClick={() => setAmount(value)}
+          >
+            ${value}
+          </Button>
+        ))}
+      </div>
+      <p className="m-0 text-2xl">
+        Pays <strong>{formatUsdc(payout)} USDG</strong> if it lands {label}
+      </p>
+      <Button
+        variant="primary"
+        size="lg"
+        block
+        loading={pending}
+        disabled={closed || parsed <= 0n}
+        onClick={() => void confirm()}
+      >
+        {pending ? STAGE_LABEL[stage] : closed ? "Trading has closed" : `Trade for $${amount}`}
       </Button>
     </>
   );
