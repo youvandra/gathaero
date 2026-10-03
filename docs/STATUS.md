@@ -77,6 +77,22 @@ cd feeder && npm run list && npm run resolve -- --watch
 ```
 Verified end-to-end on local anvil: list → faucet → buy protection → resolve delayed → claim.
 
+## Live deployment (Arbitrum Sepolia, 3 Oct 2026)
+| Contract | Address |
+|---|---|
+| Mock USDG | `0xA50d9454E71aCf152399C872815ae6895cB53229` |
+| FlightRegistry | `0x045B2050aadaFf4B80a2325D63648C09F15AB1F3` |
+| FlightOracleConsumer | `0x12d15135b5bBa8EEF0d1098Aa65A15AF503d09c9` |
+| FlightOracleReceiver | `0x00Ab57acd260c594A661B6101bDF7e92267AF135` |
+| MockFeeder | `0xf86de085E63b00C9fbA300B19807C883deb961e9` |
+| MarketFactory | `0x0981D29C89682eD3d619Cb172e417a7ec152945C` |
+| MarketLens | `0x98eee74eBcCe4d109B8eA7D653A594435503f0Ab` |
+
+Deploy block `315241943`, deployer/operator `0x9F846D2054689a439DA8D0619f37F6c70Db03597`.
+10 real SIN departures listed from AeroDataBox (3–4 Oct). TR884 and SQ638 were registered with the
+previous day's leg before the leg-selection fix; they have no markets and the app hides them.
+The resolver (`npm run resolve -- --watch`) runs on the operator's Mac — it stops if that machine sleeps.
+
 ## Not done yet
 - Deploy to Arbitrum Sepolia (needs funded deployer key) and fill `app/.env`.
 - `RAPIDAPI_KEY` for real schedules/resolution; `flights.json` times are estimates until then.
