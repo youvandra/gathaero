@@ -32,7 +32,12 @@ contract MarketLensTest is Test {
         registry = new FlightRegistry(address(this));
         oracle = new FlightOracleConsumer(address(this), address(this));
         factory = new MarketFactory(
-            address(this), address(usdg), address(oracle), address(registry), "ipfs://x/{id}"
+            address(this),
+            address(usdg),
+            address(oracle),
+            address(registry),
+            address(0),
+            "ipfs://x/{id}"
         );
         lens = new MarketLens(factory);
 

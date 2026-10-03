@@ -3,7 +3,7 @@ set -euo pipefail
 
 root="$(cd "$(dirname "$0")/../.." && pwd)"
 out="$root/contracts/out"
-contracts=(FlightMarket MarketFactory MarketLens FlightRegistry FlightOracleConsumer MockFeeder MockERC20 OutcomeToken)
+contracts=(FlightMarket MarketFactory MarketLens PassRegistry FlightRegistry FlightOracleConsumer MockFeeder MockERC20 OutcomeToken)
 
 (cd "$root/contracts" && forge build --silent)
 

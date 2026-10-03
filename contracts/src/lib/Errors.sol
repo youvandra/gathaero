@@ -18,3 +18,6 @@ error SlippageExceeded();
 error AlreadyFinalized();
 error InvalidRange();
 error UnknownWorkflow();
+error PassAlreadyUsed();
+error PassExpired();
+error NotPassenger();

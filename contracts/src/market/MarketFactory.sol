@@ -13,6 +13,7 @@ contract MarketFactory is Ownable {
     address public immutable collateral;
     IFlightOracle public immutable oracle;
     IFlightRegistry public immutable registry;
+    address public immutable passes;
     string public baseUri;
 
     mapping(bytes32 => address) private _protection;
@@ -28,6 +29,7 @@ contract MarketFactory is Ownable {
         address collateral_,
         address oracle_,
         address registry_,
+        address passes_,
         string memory baseUri_
     ) Ownable(owner_) {
         if (
@@ -39,6 +41,7 @@ contract MarketFactory is Ownable {
         collateral = collateral_;
         oracle = IFlightOracle(oracle_);
         registry = IFlightRegistry(registry_);
+        passes = passes_;
         baseUri = baseUri_;
     }
 
@@ -63,6 +66,7 @@ contract MarketFactory is Ownable {
                 0,
                 0,
                 0,
+                passes,
                 baseUri
             )
         );
@@ -91,6 +95,7 @@ contract MarketFactory is Ownable {
                 strikeArrival,
                 0,
                 0,
+                passes,
                 baseUri
             )
         );
@@ -121,6 +126,7 @@ contract MarketFactory is Ownable {
                 0,
                 lower,
                 upper,
+                passes,
                 baseUri
             )
         );

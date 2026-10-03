@@ -5,6 +5,7 @@ import { Script, console2 } from "forge-std/Script.sol";
 
 import { MockERC20 } from "../src/mocks/MockERC20.sol";
 import { FlightRegistry } from "../src/registry/FlightRegistry.sol";
+import { PassRegistry } from "../src/registry/PassRegistry.sol";
 import { FlightOracleConsumer } from "../src/oracle/FlightOracleConsumer.sol";
 import { FlightOracleReceiver } from "../src/oracle/FlightOracleReceiver.sol";
 import { MockFeeder } from "../src/oracle/MockFeeder.sol";
@@ -15,6 +16,7 @@ contract Deploy is Script {
     function run() external {
         address owner = vm.envOr("OWNER", msg.sender);
         address collateral = vm.envOr("COLLATERAL", address(0));
+        address verifier = vm.envAddress("VERIFIER");
 
         vm.startBroadcast();
 
@@ -28,8 +30,14 @@ contract Deploy is Script {
         oracle.setReporter(address(feeder), true);
         oracle.setReporter(address(receiver), true);
 
+        PassRegistry passes = new PassRegistry(owner, verifier);
         MarketFactory factory = new MarketFactory(
-            owner, collateral, address(oracle), address(registry), "ipfs://gathaero/{id}.json"
+            owner,
+            collateral,
+            address(oracle),
+            address(registry),
+            address(passes),
+            "ipfs://gathaero/{id}.json"
         );
         MarketLens lens = new MarketLens(factory);
 
@@ -40,6 +48,7 @@ contract Deploy is Script {
         console2.log("oracle", address(oracle));
         console2.log("receiver", address(receiver));
         console2.log("feeder", address(feeder));
+        console2.log("passes", address(passes));
         console2.log("factory", address(factory));
         console2.log("lens", address(lens));
     }

@@ -52,6 +52,7 @@ contract FlightMarketTest is Test {
             address(usdc),
             address(oracle),
             address(registry),
+            address(0),
             "ipfs://gathaero/{id}.json"
         );
 

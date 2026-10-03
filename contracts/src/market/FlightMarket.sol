@@ -8,6 +8,7 @@ import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 import { IFlightOracle } from "../interfaces/IFlightOracle.sol";
+import { IPassRegistry } from "../interfaces/IPassRegistry.sol";
 import { OutcomeToken } from "../tokens/OutcomeToken.sol";
 import { MarketKind, Outcome } from "../types/FlightTypes.sol";
 import {
@@ -16,6 +17,7 @@ import {
     MarketAlreadyResolved,
     MarketClosed,
     MarketNotResolved,
+    NotPassenger,
     NothingToRedeem,
     ResolutionNotFinal,
     SlippageExceeded,
@@ -33,6 +35,7 @@ contract FlightMarket is IERC1155Receiver, ReentrancyGuard {
     IFlightOracle public immutable oracle;
     OutcomeToken public immutable outcome;
     address public immutable resolver;
+    IPassRegistry public immutable passes;
 
     bytes32 public immutable flightId;
     MarketKind public immutable kind;
@@ -78,6 +81,7 @@ contract FlightMarket is IERC1155Receiver, ReentrancyGuard {
         uint64 strikeArrival_,
         uint64 lowerBound_,
         uint64 upperBound_,
+        address passes_,
         string memory uri_
     ) {
         if (collateral_ == address(0) || oracle_ == address(0) || resolver_ == address(0)) {
@@ -93,6 +97,7 @@ contract FlightMarket is IERC1155Receiver, ReentrancyGuard {
         strikeArrival = strikeArrival_;
         lowerBound = lowerBound_;
         upperBound = upperBound_;
+        passes = IPassRegistry(passes_);
         outcome = new OutcomeToken(address(this), uri_);
     }
 
@@ -169,6 +174,9 @@ contract FlightMarket is IERC1155Receiver, ReentrancyGuard {
         if (!isOpen()) revert MarketAlreadyResolved();
         if (block.timestamp >= scheduledArrival) revert MarketClosed();
         if (collateralIn == 0) revert ZeroAmount();
+        if (_requiresPass(want) && !passes.isPassenger(flightId, msg.sender)) {
+            revert NotPassenger();
+        }
 
         uint256 wantId = _id(want);
         uint256 unwantedId = wantId == outcome.ON_TIME() ? outcome.DELAYED() : outcome.ON_TIME();
@@ -251,6 +259,12 @@ contract FlightMarket is IERC1155Receiver, ReentrancyGuard {
             outcome.balanceOf(address(this), outcome.ON_TIME()),
             outcome.balanceOf(address(this), outcome.DELAYED())
         );
+    }
+
+    function _requiresPass(Outcome want) private view returns (bool) {
+        return
+            kind == MarketKind.Protection && want == Outcome.Delayed
+                && address(passes) != address(0);
     }
 
     function _returnExcess(uint256 id, uint256 amount, uint256 reserve, uint256 poolWeight)
