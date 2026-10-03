@@ -10,10 +10,12 @@ import { FlightExists, FlightUnknown, ZeroAddress } from "../lib/Errors.sol";
 contract FlightRegistry is IFlightRegistry, Ownable {
     mapping(bytes32 => Flight) private _flights;
     mapping(bytes32 => bool) private _known;
+    bytes32[] private _ids;
 
     event FlightRegistered(
         bytes32 indexed flightId,
         string number,
+        string route,
         uint64 scheduledArrival,
         uint16 delayThresholdMinutes
     );
@@ -25,13 +27,15 @@ contract FlightRegistry is IFlightRegistry, Ownable {
     function registerFlight(
         bytes32 flightId,
         string calldata number,
+        string calldata route,
         uint64 scheduledArrival,
         uint16 delayThresholdMinutes
     ) external onlyOwner {
         if (_known[flightId]) revert FlightExists();
-        _flights[flightId] = Flight(number, scheduledArrival, delayThresholdMinutes);
+        _flights[flightId] = Flight(number, route, scheduledArrival, delayThresholdMinutes);
         _known[flightId] = true;
-        emit FlightRegistered(flightId, number, scheduledArrival, delayThresholdMinutes);
+        _ids.push(flightId);
+        emit FlightRegistered(flightId, number, route, scheduledArrival, delayThresholdMinutes);
     }
 
     function getFlight(bytes32 flightId) external view returns (Flight memory) {
@@ -41,5 +45,9 @@ contract FlightRegistry is IFlightRegistry, Ownable {
 
     function exists(bytes32 flightId) external view returns (bool) {
         return _known[flightId];
+    }
+
+    function flightIds() external view returns (bytes32[] memory) {
+        return _ids;
     }
 }

@@ -14,6 +14,7 @@ enum MarketKind {
 
 struct Flight {
     string number;
+    string route;
     uint64 scheduledArrival;
     uint16 delayThresholdMinutes;
 }

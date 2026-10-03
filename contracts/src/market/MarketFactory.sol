@@ -18,6 +18,7 @@ contract MarketFactory is Ownable {
     mapping(bytes32 => address) private _protection;
     mapping(bytes32 => mapping(uint64 => address)) private _threshold;
     mapping(bytes32 => address) private _ranges;
+    mapping(bytes32 => address[]) private _rangeList;
 
     event MarketCreated(bytes32 indexed flightId, address market, MarketKind kind, uint64 param);
     event BaseUriUpdated(string baseUri);
@@ -124,6 +125,7 @@ contract MarketFactory is Ownable {
             )
         );
         _ranges[key] = market;
+        _rangeList[flightId].push(market);
 
         emit MarketCreated(flightId, market, MarketKind.Range, upper);
     }
@@ -150,6 +152,10 @@ contract MarketFactory is Ownable {
         returns (address)
     {
         return _ranges[rangeKey(flightId, lower, upper)];
+    }
+
+    function rangeMarketsOf(bytes32 flightId) external view returns (address[] memory) {
+        return _rangeList[flightId];
     }
 
     function isListed(bytes32 flightId) external view returns (bool) {

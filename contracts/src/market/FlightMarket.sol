@@ -42,6 +42,7 @@ contract FlightMarket is IERC1155Receiver, ReentrancyGuard {
 
     uint256 public totalShares;
     uint256 public lpCollateral;
+    uint256 public volume;
     mapping(address => uint256) public shares;
     mapping(address => uint256) public contributions;
 
@@ -51,7 +52,13 @@ contract FlightMarket is IERC1155Receiver, ReentrancyGuard {
 
     event LiquidityAdded(address indexed provider, uint256 amount, uint256 sharesMinted);
     event LiquidityRemoved(address indexed provider, uint256 sharesBurned, uint256 amountOut);
-    event Bought(address indexed buyer, Outcome want, uint256 collateralIn, uint256 sharesOut);
+    event Bought(
+        address indexed buyer,
+        Outcome want,
+        uint256 collateralIn,
+        uint256 sharesOut,
+        uint256 delayedProbability
+    );
     event Resolved(Outcome winning, int32 delayMinutes);
     event Voided();
     event Refunded(address indexed holder, uint256 amountOut);
@@ -157,7 +164,8 @@ contract FlightMarket is IERC1155Receiver, ReentrancyGuard {
         outcome.transferOut(msg.sender, wantId, dy);
 
         sharesOut = collateralIn + dy;
-        emit Bought(msg.sender, want, collateralIn, sharesOut);
+        volume += collateralIn;
+        emit Bought(msg.sender, want, collateralIn, sharesOut, probability(Outcome.Delayed));
     }
 
     function resolve() external nonReentrant {
@@ -205,7 +213,7 @@ contract FlightMarket is IERC1155Receiver, ReentrancyGuard {
         emit Redeemed(msg.sender, amountOut, amountOut);
     }
 
-    function probability(Outcome o) external view returns (uint256) {
+    function probability(Outcome o) public view returns (uint256) {
         uint256 reserveOnTime = outcome.balanceOf(address(this), outcome.ON_TIME());
         uint256 reserveDelayed = outcome.balanceOf(address(this), outcome.DELAYED());
         uint256 sum = reserveOnTime + reserveDelayed;

@@ -41,7 +41,7 @@ contract FlightMarketTest is Test {
         usdc = new MockERC20("USD Coin", "USDC", 6);
         registry = new FlightRegistry(address(this));
         oracle = new FlightOracleConsumer(address(this), address(this));
-        feeder = new MockFeeder(address(oracle));
+        feeder = new MockFeeder(address(oracle), address(this));
         oracle.setReporter(address(feeder), true);
 
         factory = new MarketFactory(
@@ -54,7 +54,7 @@ contract FlightMarketTest is Test {
 
         flightId = keccak256("SQ956-2026-10-01");
         scheduledArrival = uint64(block.timestamp + 2 hours);
-        registry.registerFlight(flightId, "SQ956", scheduledArrival, THRESHOLD);
+        registry.registerFlight(flightId, "SQ956", "SIN-CGK", scheduledArrival, THRESHOLD);
         market = FlightMarket(factory.createProtection(flightId));
 
         usdc.mint(lp, 1_000_000 * UNIT);
@@ -170,6 +170,23 @@ contract FlightMarketTest is Test {
         vm.prank(stranger);
         vm.expectRevert(Unauthorized.selector);
         oracle.postResolution(flightId, 150, true);
+    }
+
+    function test_OnlyOwnerCanFeed() public {
+        vm.prank(stranger);
+        vm.expectRevert();
+        feeder.feed(flightId, 150, true);
+    }
+
+    function test_BuyAccumulatesVolume() public {
+        vm.prank(lp);
+        market.addLiquidity(1_000 * UNIT);
+        vm.startPrank(trader);
+        market.buy(Outcome.Delayed, 100 * UNIT);
+        market.buy(Outcome.OnTime, 40 * UNIT);
+        vm.stopPrank();
+
+        assertEq(market.volume(), 140 * UNIT);
     }
 
     function testFactoryRejectsDuplicateMarket() public {
