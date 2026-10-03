@@ -4,6 +4,7 @@ import { Providers } from "./app/Providers";
 import { AppLayout } from "./components/layout/AppShell";
 import { LandingPage } from "./landing/LandingPage";
 import { ConnectPage } from "./pages/connect/ConnectPage";
+import { KioskPage } from "./pages/kiosk/KioskPage";
 import { EarnPage } from "./pages/app/EarnPage";
 import { HomePage } from "./pages/app/HomePage";
 import { MarketDetailPage } from "./pages/app/MarketDetailPage";
@@ -24,6 +25,7 @@ export default function App() {
           <Route path="/how" element={<HowPage />} />
           <Route path="/docs" element={<DocsPage />} />
           <Route path="/connect" element={<ConnectPage />} />
+          <Route path="/kiosk" element={<KioskPage />} />
 
           <Route path="/app" element={<AppLayout />}>
             <Route index element={<HomePage />} />

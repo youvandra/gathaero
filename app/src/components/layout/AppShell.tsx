@@ -30,13 +30,25 @@ function TopBar() {
   return (
     <header
       className="sticky top-0 z-20 flex items-center justify-between gap-4 border-b px-5 py-4 backdrop-blur-xl sm:px-7"
-      style={{ borderColor: "var(--cordon-hairline)", background: "color-mix(in srgb, var(--cordon-paper) 85%, transparent)" }}
+      style={{
+        borderColor: "var(--cordon-hairline)",
+        background: "color-mix(in srgb, var(--cordon-paper) 85%, transparent)",
+      }}
     >
       <span className="md:hidden">
         <Brand />
       </span>
       <span className="hidden md:block" />
-      <WalletButton />
+      <span className="flex items-center gap-2">
+        <Link
+          to="/kiosk"
+          className="hidden rounded-full border px-3 py-1.5 text-sm no-underline sm:inline-block"
+          style={{ borderColor: "var(--cordon-hairline)", color: "var(--cordon-copy)" }}
+        >
+          Kiosk mode
+        </Link>
+        <WalletButton />
+      </span>
     </header>
   );
 }
@@ -82,7 +94,10 @@ function BottomNav() {
   return (
     <nav
       className="fixed inset-x-0 bottom-0 z-20 flex justify-around border-t px-2 pb-3 pt-2 backdrop-blur-xl md:hidden"
-      style={{ borderColor: "var(--cordon-hairline)", background: "color-mix(in srgb, var(--cordon-paper) 95%, transparent)" }}
+      style={{
+        borderColor: "var(--cordon-hairline)",
+        background: "color-mix(in srgb, var(--cordon-paper) 95%, transparent)",
+      }}
     >
       {APP_NAV.map((item) => (
         <NavLink
@@ -116,11 +131,17 @@ function BottomNav() {
 
 export function AppShell({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen" style={{ background: "var(--cordon-paper)", color: "var(--cordon-ink)" }}>
+    <div
+      className="min-h-screen"
+      style={{ background: "var(--cordon-paper)", color: "var(--cordon-ink)" }}
+    >
       <div className="md:grid md:min-h-screen md:grid-cols-[264px_1fr]">
         <aside
           className="sticky top-0 hidden h-screen border-r p-6 md:block"
-          style={{ borderColor: "var(--cordon-hairline)", background: "var(--cordon-paper-raised)" }}
+          style={{
+            borderColor: "var(--cordon-hairline)",
+            background: "var(--cordon-paper-raised)",
+          }}
         >
           <SideNav />
         </aside>

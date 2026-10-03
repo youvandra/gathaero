@@ -7,7 +7,7 @@ import { targetChain } from "../../config/chains";
 import { errorToast } from "../../lib/errors";
 
 const safeNext = (value: string | null): string =>
-  value && value.startsWith("/app") ? value : "/app";
+  value && (value.startsWith("/app") || value.startsWith("/kiosk")) ? value : "/app";
 
 const hasInjectedWallet = (): boolean =>
   typeof window !== "undefined" && "ethereum" in window && Boolean(window.ethereum);
