@@ -1,5 +1,12 @@
-import { arbitrum, arbitrumSepolia } from "viem/chains";
+import type { Chain } from "viem";
+import { arbitrum, arbitrumSepolia, foundry } from "viem/chains";
 
-export { arbitrum, arbitrumSepolia };
+import { env } from "./env";
 
-export const supportedChains = [arbitrumSepolia, arbitrum] as const;
+const CHAINS: Record<number, Chain> = {
+  [arbitrumSepolia.id]: arbitrumSepolia,
+  [arbitrum.id]: arbitrum,
+  [foundry.id]: foundry,
+};
+
+export const targetChain: Chain = CHAINS[env.chainId] ?? arbitrumSepolia;

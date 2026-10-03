@@ -1,141 +1,135 @@
 import { Button, Card, CardHeader, DataTable, Tag, useToast } from "cordon-ui";
 import type { Column, TagTone } from "cordon-ui";
+import { useAccount } from "wagmi";
 
 import { StatTile } from "../../features/dashboard/StatTile";
+import {
+  usePositions,
+  type Position,
+  type PositionAction,
+} from "../../features/market/usePositions";
+import { useTransact } from "../../features/market/useTransact";
+import { formatUsdc } from "../../lib/format";
 
-type Side = "Protection" | "Prediction";
-type PosStatus = "active" | "delayed" | "resolved";
-
-type Position = {
-  id: string;
-  flight: string;
-  route: string;
-  side: Side;
-  detail: string;
-  size: number;
-  entry: string;
-  mark: string;
-  pnl: number;
-  status: PosStatus;
+const STATE_TONE: Record<Position["state"], TagTone> = {
+  open: "neutral",
+  won: "positive",
+  lost: "critical",
+  voided: "caution",
 };
 
-const POSITIONS: Position[] = [
-  { id: "TR286-P", flight: "TR286", route: "SIN → CGK", side: "Protection", detail: "Delayed > 2h", size: 100, entry: "$62.00", mark: "$100.00", pnl: 38, status: "delayed" },
-  { id: "AK380-P", flight: "AK380", route: "SIN → KUL", side: "Protection", detail: "Delayed > 2h", size: 100, entry: "$9.10", mark: "$9.10", pnl: 0, status: "active" },
-  { id: "QZ521-Y", flight: "QZ521", route: "SIN → DPS", side: "Prediction", detail: "Lands by 16:40", size: 40, entry: "48¢", mark: "52¢", pnl: 1.6, status: "active" },
-  { id: "SQ956-P", flight: "SQ956", route: "SIN → CGK", side: "Protection", detail: "Delayed > 2h", size: 60, entry: "$6.20", mark: "$6.20", pnl: 0, status: "active" },
-  { id: "GA410-Y", flight: "GA410", route: "CGK → DPS", side: "Prediction", detail: "Lands by 18:15", size: 30, entry: "70¢", mark: "100¢", pnl: 9, status: "resolved" },
-];
-
-const STATUS_TONE: Record<PosStatus, TagTone> = {
-  active: "neutral",
-  delayed: "critical",
-  resolved: "positive",
+const ACTION_LABEL: Record<Exclude<PositionAction, null>, string> = {
+  redeem: "Claim",
+  refund: "Refund",
+  withdraw: "Withdraw",
 };
 
-function buildColumns(onAction: (row: Position) => void): Column<Position>[] {
+function buildColumns(onAction: (row: Position) => void, pending: boolean): Column<Position>[] {
   return [
-  {
-    id: "flight",
-    header: "Flight",
-    sortBy: (row) => row.flight,
-    cell: (row) => (
-      <span className="flex flex-col">
-        <span style={{ fontWeight: 600, color: "var(--cordon-ink)" }}>{row.flight}</span>
-        <span style={{ color: "var(--cordon-copy-dim)", fontSize: "var(--cordon-size-micro)" }}>
-          {row.route}
+    {
+      id: "flight",
+      header: "Flight",
+      sortBy: (row) => row.flight,
+      cell: (row) => (
+        <span className="flex flex-col">
+          <span style={{ fontWeight: 600, color: "var(--cordon-ink)" }}>{row.flight}</span>
+          <span style={{ color: "var(--cordon-copy-dim)", fontSize: "var(--cordon-size-micro)" }}>
+            {row.label}
+          </span>
         </span>
-      </span>
-    ),
-  },
-  {
-    id: "side",
-    header: "Type",
-    sortBy: (row) => row.side,
-    cell: (row) => (
-      <span className="flex flex-col">
-        <span>{row.side}</span>
-        <span style={{ color: "var(--cordon-copy-dim)", fontSize: "var(--cordon-size-micro)" }}>
-          {row.detail}
-        </span>
-      </span>
-    ),
-  },
-  { id: "size", header: "Size", numeric: true, sortBy: (row) => row.size, cell: (row) => `$${row.size}` },
-  { id: "entry", header: "Entry", numeric: true, cell: (row) => row.entry },
-  { id: "mark", header: "Mark", numeric: true, cell: (row) => row.mark },
-  {
-    id: "pnl",
-    header: "PnL",
-    numeric: true,
-    sortBy: (row) => row.pnl,
-    cell: (row) => (
-      <span
-        style={{
-          color: row.pnl > 0 ? "var(--cordon-positive)" : row.pnl < 0 ? "var(--cordon-critical)" : "var(--cordon-copy)",
-          fontVariantNumeric: "tabular-nums",
-        }}
-      >
-        {row.pnl > 0 ? "+" : ""}
-        {row.pnl.toFixed(2)}
-      </span>
-    ),
-  },
-  {
-    id: "status",
-    header: "Status",
-    cell: (row) => (
-      <Tag tone={STATUS_TONE[row.status]} size="sm">
-        {row.status}
-      </Tag>
-    ),
-  },
-  {
-    id: "action",
-    header: "",
-    align: "end",
-    cell: (row) => (
-      <Button
-        variant={row.status === "delayed" ? "primary" : "secondary"}
-        size="sm"
-        onClick={() => onAction(row)}
-      >
-        {row.status === "delayed" ? "Claim" : "Sell"}
-      </Button>
-    ),
-  },
+      ),
+    },
+    { id: "side", header: "Side", sortBy: (row) => row.side, cell: (row) => row.side },
+    {
+      id: "shares",
+      header: "Shares",
+      numeric: true,
+      sortBy: (row) => Number(row.shares),
+      cell: (row) => formatUsdc(row.shares),
+    },
+    {
+      id: "mark",
+      header: "Mark",
+      numeric: true,
+      cell: (row) => `${(row.mark * 100).toFixed(0)}¢`,
+    },
+    {
+      id: "value",
+      header: "Value",
+      numeric: true,
+      sortBy: (row) => row.value,
+      cell: (row) => `$${row.value.toFixed(2)}`,
+    },
+    {
+      id: "state",
+      header: "Status",
+      cell: (row) => (
+        <Tag tone={STATE_TONE[row.state]} size="sm">
+          {row.state}
+        </Tag>
+      ),
+    },
+    {
+      id: "action",
+      header: "",
+      align: "end",
+      cell: (row) =>
+        row.action ? (
+          <Button variant="primary" size="sm" disabled={pending} onClick={() => onAction(row)}>
+            {ACTION_LABEL[row.action]}
+          </Button>
+        ) : null,
+    },
   ];
 }
 
 export function PositionsPage() {
   const { notify } = useToast();
-  const totalPnl = POSITIONS.reduce((sum, position) => sum + position.pnl, 0);
+  const { isConnected } = useAccount();
+  const { positions, isLoading } = usePositions();
+  const { redeem, refund, removeLiquidity, pending } = useTransact();
 
-  const handleAction = (row: Position) => {
-    if (row.status === "delayed") {
+  const open = positions.filter((p) => p.state === "open");
+  const claimable = positions.filter((p) => p.action !== null);
+  const openValue = open.reduce((sum, p) => sum + p.value, 0);
+  const claimableValue = claimable.reduce((sum, p) => sum + p.value, 0);
+
+  const handleAction = async (row: Position) => {
+    try {
+      if (row.action === "redeem") await redeem(row.market);
+      if (row.action === "refund") await refund(row.market);
+      if (row.action === "withdraw") await removeLiquidity(row.market, row.shares);
+      notify({ tone: "positive", title: "Claimed", children: `${row.flight} · ${row.label}` });
+    } catch (error) {
       notify({
-        tone: "positive",
-        title: "Claim submitted",
-        children: `${row.flight} · $${row.size}`,
-      });
-    } else {
-      notify({
-        tone: "info",
-        title: "Secondary market coming soon",
-        children: `Position ${row.flight}`,
+        tone: "critical",
+        title: "Could not claim",
+        children: error instanceof Error ? error.message.split("\n")[0] : "Try again",
       });
     }
   };
 
-  const columns = buildColumns(handleAction);
+  const columns = buildColumns((row) => {
+    void handleAction(row);
+  }, pending);
 
   return (
     <>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatTile label="Open positions" value="5" delta="3 protection · 2 prediction" up />
-        <StatTile label="Notional" value="$330" delta="protected" up />
-        <StatTile label="Unrealized PnL" value={`+$${totalPnl.toFixed(2)}`} delta="+12.6%" up />
-        <StatTile label="Pending claims" value="$100" delta="1 claimable" up />
+        <StatTile label="Open positions" value={open.length.toString()} />
+        <StatTile
+          label="Open value"
+          value={`$${openValue.toFixed(2)}`}
+          delta="at market price"
+          up
+        />
+        <StatTile
+          label="Claimable"
+          value={`$${claimableValue.toFixed(2)}`}
+          delta={`${claimable.length} ready`}
+          up
+        />
+        <StatTile label="Settled" value={(positions.length - open.length).toString()} />
       </div>
 
       <Card>
@@ -146,10 +140,17 @@ export function PositionsPage() {
         </CardHeader>
         <DataTable
           columns={columns}
-          rows={POSITIONS}
-          rowKey={(row) => row.id}
+          rows={positions}
+          rowKey={(row) => row.key}
           density="default"
           stickyHeader={false}
+          empty={
+            !isConnected
+              ? "Connect a wallet to see your positions"
+              : isLoading
+                ? "Loading positions…"
+                : "No positions yet — buy protection or a prediction to start"
+          }
         />
       </Card>
     </>

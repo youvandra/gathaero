@@ -1,11 +1,18 @@
 import { Button, SearchField } from "cordon-ui";
 import { useState } from "react";
 
-const POPULAR = ["SQ956", "AK380", "TR286", "QZ521"];
-
-export function HeroSearch({ onSearch }: { onSearch: (code: string) => void }) {
+export function HeroSearch({
+  popular,
+  onSearch,
+}: {
+  popular: string[];
+  onSearch: (code: string) => void;
+}) {
   const [code, setCode] = useState("");
-  const submit = () => onSearch(code.trim() || "SQ956");
+  const submit = () => {
+    const query = code.trim() || popular[0];
+    if (query) onSearch(query);
+  };
 
   return (
     <div
@@ -26,7 +33,9 @@ export function HeroSearch({ onSearch }: { onSearch: (code: string) => void }) {
         >
           Find a flight
         </h2>
-        <p style={{ margin: 0, color: "var(--cordon-copy)", fontSize: "var(--cordon-size-caption)" }}>
+        <p
+          style={{ margin: 0, color: "var(--cordon-copy)", fontSize: "var(--cordon-size-caption)" }}
+        >
           Search any flight number and open its delay market.
         </p>
       </div>
@@ -46,16 +55,18 @@ export function HeroSearch({ onSearch }: { onSearch: (code: string) => void }) {
         </Button>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <span style={{ color: "var(--cordon-copy-dim)", fontSize: "var(--cordon-size-caption)" }}>
-          Popular
-        </span>
-        {POPULAR.map((flight) => (
-          <Button key={flight} variant="ghost" size="sm" onClick={() => onSearch(flight)}>
-            {flight}
-          </Button>
-        ))}
-      </div>
+      {popular.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <span style={{ color: "var(--cordon-copy-dim)", fontSize: "var(--cordon-size-caption)" }}>
+            Popular
+          </span>
+          {popular.map((flight) => (
+            <Button key={flight} variant="ghost" size="sm" onClick={() => onSearch(flight)}>
+              {flight}
+            </Button>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

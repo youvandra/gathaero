@@ -15,79 +15,107 @@ import { parseUnits } from "viem";
 import { useAccount } from "wagmi";
 
 import { StatTile } from "../../features/dashboard/StatTile";
-import {
-  DEFAULT_FLIGHT,
-  flightIdOf,
-  useAddLiquidity,
-  useMarketAddress,
-  useMarketState,
-} from "../../features/market/useFlightMarket";
-
-type Pool = {
-  route: string;
-  tvl: number;
-  apy: number;
-  utilisation: number;
-  exposure: number;
-};
-
-const POOLS: Pool[] = [
-  { route: "SIN → CGK", tvl: 24_800, apy: 14.0, utilisation: 0.42, exposure: 12_400 },
-  { route: "SIN → KUL", tvl: 16_300, apy: 11.5, utilisation: 0.36, exposure: 6_100 },
-  { route: "SIN → DPS", tvl: 9_100, apy: 16.8, utilisation: 0.55, exposure: 4_300 },
-];
-
-const COLUMNS: Column<Pool>[] = [
-  { id: "route", header: "Route", sortBy: (row) => row.route, cell: (row) => <strong style={{ color: "var(--cordon-ink)" }}>{row.route}</strong> },
-  { id: "tvl", header: "TVL", numeric: true, sortBy: (row) => row.tvl, cell: (row) => `$${row.tvl.toLocaleString()}` },
-  { id: "apy", header: "APY", numeric: true, sortBy: (row) => row.apy, cell: (row) => <span style={{ color: "var(--cordon-positive)" }}>{row.apy.toFixed(1)}%</span> },
-  { id: "utilisation", header: "Utilisation", numeric: true, sortBy: (row) => row.utilisation, cell: (row) => `${(row.utilisation * 100).toFixed(0)}%` },
-  { id: "exposure", header: "Exposure", numeric: true, sortBy: (row) => row.exposure, cell: (row) => `$${row.exposure.toLocaleString()}` },
-  { id: "action", header: "", align: "end", cell: () => <Button variant="secondary" size="sm">Add</Button> },
-];
+import { isLive, type FlightMarket } from "../../features/market/model";
+import { useFlights } from "../../features/market/useFlights";
+import { useMarketTrends } from "../../features/market/useMarketTrends";
+import { usePositions } from "../../features/market/usePositions";
+import { useTransact } from "../../features/market/useTransact";
+import { formatUsdc } from "../../lib/format";
 
 function CardTitle({ children }: { children: string }) {
   return (
-    <h2 style={{ margin: 0, fontSize: "var(--cordon-size-title)", fontWeight: 600 }}>
-      {children}
-    </h2>
+    <h2 style={{ margin: 0, fontSize: "var(--cordon-size-title)", fontWeight: 600 }}>{children}</h2>
   );
+}
+
+function buildColumns(onAdd: (row: FlightMarket) => void, canAdd: boolean): Column<FlightMarket>[] {
+  return [
+    {
+      id: "flight",
+      header: "Pool",
+      sortBy: (row) => row.code,
+      cell: (row) => (
+        <span className="flex flex-col">
+          <strong style={{ color: "var(--cordon-ink)" }}>{row.code}</strong>
+          <span style={{ color: "var(--cordon-copy-dim)", fontSize: "var(--cordon-size-micro)" }}>
+            {row.route} · {row.date}
+          </span>
+        </span>
+      ),
+    },
+    {
+      id: "locked",
+      header: "Locked",
+      numeric: true,
+      sortBy: (row) => Number(row.protection?.locked ?? 0n),
+      cell: (row) => `$${formatUsdc(row.protection?.locked ?? 0n, 0)}`,
+    },
+    {
+      id: "premium",
+      header: "Premium",
+      numeric: true,
+      sortBy: (row) => row.delayProbability,
+      cell: (row) => `${(row.delayProbability * 100).toFixed(1)}%`,
+    },
+    {
+      id: "volume",
+      header: "Volume",
+      numeric: true,
+      sortBy: (row) => Number(row.protection?.volume ?? 0n),
+      cell: (row) => `$${formatUsdc(row.protection?.volume ?? 0n, 0)}`,
+    },
+    {
+      id: "action",
+      header: "",
+      align: "end",
+      cell: (row) => (
+        <Button variant="secondary" size="sm" disabled={!canAdd} onClick={() => onAdd(row)}>
+          Add
+        </Button>
+      ),
+    },
+  ];
 }
 
 export function VaultPage() {
   const { notify } = useToast();
   const { isConnected } = useAccount();
+  const { flights } = useFlights();
+  const { volumeSeries } = useMarketTrends(flights);
+  const { positions } = usePositions();
+  const { addLiquidity, pending } = useTransact();
+
   const [amount, setAmount] = useState("");
-  const [addOpen, setAddOpen] = useState(false);
+  const [target, setTarget] = useState<FlightMarket | null>(null);
 
-  const flightId = flightIdOf(DEFAULT_FLIGHT.number, DEFAULT_FLIGHT.date);
-  const market = useMarketAddress(flightId);
-  const state = useMarketState(market);
-  const { addLiquidity, isPending } = useAddLiquidity(market);
-
-  const tvl = state.reserves ? Number(state.reserves[0] + state.reserves[1]) / 1e6 : 24_800;
-  const exposure = state.reserves ? Number(state.reserves[1]) / 1e6 : 12_400;
+  const pools = flights.filter((flight) => isLive(flight) && flight.protection);
+  const tvl = flights.reduce((sum, f) => sum + (f.protection?.locked ?? 0n), 0n);
+  const volume = flights.reduce((sum, f) => sum + (f.protection?.volume ?? 0n), 0n);
+  const myLiquidity = positions
+    .filter((p) => p.side === "Liquidity")
+    .reduce((sum, p) => sum + p.value, 0);
 
   const confirmAdd = async () => {
+    if (!target?.protection) return;
     const parsed = parseUnits(amount || "0", 6);
     if (parsed <= 0n) {
       notify({ tone: "caution", title: "Enter an amount first" });
       return;
     }
     try {
-      await addLiquidity(parsed);
+      await addLiquidity(target.protection.address, parsed);
       notify({
         tone: "positive",
         title: "Liquidity added",
-        children: `${amount} USDC on SIN → CGK`,
+        children: `${amount} USDG on ${target.code} · ${target.route}`,
       });
-      setAddOpen(false);
+      setTarget(null);
       setAmount("");
     } catch (error) {
       notify({
         tone: "critical",
         title: "Could not add liquidity",
-        children: error instanceof Error ? error.message : "Try again",
+        children: error instanceof Error ? error.message.split("\n")[0] : "Try again",
       });
     }
   };
@@ -95,74 +123,65 @@ export function VaultPage() {
   return (
     <>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatTile label="TVL" value={`$${tvl.toLocaleString()}`} delta="+4.2% 7d" up history={[18, 19.5, 21, 20.4, 22.8, 23.6, 24.1, 24.8]} />
-        <StatTile label="Net APY" value="14.0%" delta="premium yield" up />
-        <StatTile label="Exposure" value={`$${exposure.toLocaleString()}`} delta="at risk" up={false} />
-        <StatTile label="Routes" value="3" delta="live pools" up />
+        <StatTile label="TVL" value={`$${formatUsdc(tvl, 0)}`} delta="protection pools" up />
+        <StatTile label="Premium volume" value={`$${formatUsdc(volume, 0)}`} up />
+        <StatTile label="Your liquidity" value={`$${myLiquidity.toFixed(2)}`} />
+        <StatTile label="Open pools" value={pools.length.toString()} />
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <Card>
           <CardHeader>
-            <CardTitle>Total value locked · 30d</CardTitle>
+            <CardTitle>Cumulative volume</CardTitle>
           </CardHeader>
           <div className="px-5 pb-5">
             <LineChart
-              series={[
-                {
-                  id: "tvl",
-                  values: [12, 13.5, 15, 14.2, 16.8, 18.4, 19.1, 20.6, 22.4, 23.1, 24.0, 24.8],
-                  glaze: "rose",
-                },
-              ]}
+              series={[{ id: "vol", values: volumeSeries, glaze: "rose" }]}
               height={190}
-              format={(value) => `$${value}k`}
-              label="TVL"
+              format={(value) => `$${Math.round(value).toLocaleString()}`}
+              label="Volume"
             />
           </div>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Add liquidity</CardTitle>
+            <CardTitle>Underwrite a flight</CardTitle>
           </CardHeader>
           <CardBody>
-            <div className="flex flex-col gap-3">
-              <p style={{ margin: 0, color: "var(--cordon-copy)" }}>
-                Adding liquidity is how you underwrite the route — the same as depositing
-                into the pool. You earn the premium when flights land on time.
-              </p>
-              <Button
-                variant="primary"
-                block
-                disabled={!isConnected || !market}
-                onClick={() => setAddOpen(true)}
-              >
-                Add liquidity
-              </Button>
-            </div>
+            <p style={{ margin: 0, color: "var(--cordon-copy)" }}>
+              Liquidity takes the other side of every protection buyer. You keep the premiums when
+              the flight lands on time and withdraw once the market settles.
+            </p>
           </CardBody>
         </Card>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Route pools</CardTitle>
+          <CardTitle>Protection pools</CardTitle>
         </CardHeader>
-        <DataTable columns={COLUMNS} rows={POOLS} rowKey={(row) => row.route} density="default" stickyHeader={false} />
+        <DataTable
+          columns={buildColumns(setTarget, isConnected)}
+          rows={pools}
+          rowKey={(row) => row.id}
+          density="default"
+          stickyHeader={false}
+          empty="No open pools"
+        />
       </Card>
 
       <Modal
-        open={addOpen}
-        onClose={() => setAddOpen(false)}
+        open={target !== null}
+        onClose={() => setTarget(null)}
         title="Add liquidity"
-        description="SIN → CGK vault"
+        description={target ? `${target.code} · ${target.route} · ${target.date}` : undefined}
         footer={
           <>
-            <Button variant="ghost" onClick={() => setAddOpen(false)}>
+            <Button variant="ghost" onClick={() => setTarget(null)}>
               Cancel
             </Button>
-            <Button variant="primary" loading={isPending} onClick={confirmAdd}>
+            <Button variant="primary" loading={pending} onClick={confirmAdd}>
               Confirm
             </Button>
           </>
@@ -171,13 +190,19 @@ export function VaultPage() {
         <div className="flex flex-col gap-3">
           <TextField
             inputMode="decimal"
-            prefix="USDC"
+            prefix="USDG"
             placeholder="Amount"
             value={amount}
             onChange={(event) => setAmount(event.target.value)}
           />
-          <p style={{ margin: 0, color: "var(--cordon-copy-dim)", fontSize: "var(--cordon-size-caption)" }}>
-            You can withdraw between flights.
+          <p
+            style={{
+              margin: 0,
+              color: "var(--cordon-copy-dim)",
+              fontSize: "var(--cordon-size-caption)",
+            }}
+          >
+            Withdraw after the flight settles, or in full if it is voided.
           </p>
         </div>
       </Modal>

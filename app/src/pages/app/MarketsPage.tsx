@@ -3,13 +3,16 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { MarketTable } from "../../features/dashboard/MarketTable";
-import { MOCK_MARKETS } from "../../features/dashboard/mockMarkets";
+import { useFlights } from "../../features/market/useFlights";
+import { useMarketTrends } from "../../features/market/useMarketTrends";
 
 export function MarketsPage() {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
+  const { flights, isLoading } = useFlights();
+  const { trendOf } = useMarketTrends(flights);
 
-  const rows = MOCK_MARKETS.filter((market) =>
+  const rows = flights.filter((market) =>
     `${market.code} ${market.route}`.toLowerCase().includes(query.trim().toLowerCase()),
   );
 
@@ -31,6 +34,8 @@ export function MarketsPage() {
       </CardHeader>
       <MarketTable
         rows={rows}
+        trendOf={trendOf}
+        empty={isLoading ? "Loading markets…" : undefined}
         onSelect={(market) => navigate(`/app/market/${market.code}`)}
       />
     </Card>

@@ -4,65 +4,69 @@ import { useNavigate } from "react-router-dom";
 import { HeroSearch } from "../../features/dashboard/HeroSearch";
 import { MarketTable } from "../../features/dashboard/MarketTable";
 import { StatTile } from "../../features/dashboard/StatTile";
-import {
-  MOCK_MARKETS,
-  MOCK_TOTALS,
-  MOCK_VOLUME_SERIES,
-} from "../../features/dashboard/mockMarkets";
+import { isLive } from "../../features/market/model";
+import { useFlights } from "../../features/market/useFlights";
+import { useMarketTrends } from "../../features/market/useMarketTrends";
+import { formatUsdc } from "../../lib/format";
 
 function CardTitle({ children }: { children: string }) {
   return (
-    <h2 style={{ margin: 0, fontSize: "var(--cordon-size-title)", fontWeight: 600 }}>
-      {children}
-    </h2>
+    <h2 style={{ margin: 0, fontSize: "var(--cordon-size-title)", fontWeight: 600 }}>{children}</h2>
   );
 }
-
-const STATS = [
-  {
-    label: "Flights live",
-    value: MOCK_TOTALS.flightsLive.toLocaleString(),
-    delta: "+38 today",
-    up: true,
-    history: [980, 1040, 1010, 1120, 1090, 1180, 1210, 1248],
-  },
-  {
-    label: "Avg delay rate",
-    value: `${(MOCK_TOTALS.avgDelayRate * 100).toFixed(1)}%`,
-    history: [5.1, 5.4, 5.2, 5.8, 5.6, 6.0, 6.1, 6.2],
-  },
-  {
-    label: "Protected",
-    value: `$${Math.round(MOCK_TOTALS.protectedUsdc / 1000)}k`,
-    delta: "+$12k today",
-    up: true,
-  },
-  {
-    label: "Open interest",
-    value: `$${Math.round(MOCK_TOTALS.openInterest / 1000)}k`,
-    delta: "+8.4%",
-    up: true,
-  },
-];
 
 export function HomePage() {
   const navigate = useNavigate();
   const openDetail = (code: string) => navigate(`/app/market/${code}`);
 
-  const movers = [...MOCK_MARKETS]
-    .sort(
-      (a, b) =>
-        Math.abs(b.history[b.history.length - 1] - b.history[0]) -
-        Math.abs(a.history[a.history.length - 1] - a.history[0]),
-    )
-    .slice(0, 4);
+  const { flights } = useFlights();
+  const { trades, trendOf, volumeSeries } = useMarketTrends(flights);
+
+  const live = flights.filter(isLive);
+  const avgDelay =
+    live.length > 0 ? live.reduce((sum, f) => sum + f.delayProbability, 0) / live.length : 0;
+  const openInterest = flights.reduce((sum, f) => sum + f.openInterest, 0n);
+  const volume = flights.reduce((sum, f) => sum + f.volume, 0n);
+
+  const movement = (code: string) => {
+    const flight = flights.find((f) => f.code === code);
+    if (!flight) return 0;
+    const series = trendOf(flight);
+    return Math.abs(series[series.length - 1] - series[0]);
+  };
+  const movers = [...live].sort((a, b) => movement(b.code) - movement(a.code)).slice(0, 4);
+
+  const stats = [
+    {
+      label: "Flights live",
+      value: live.length.toString(),
+      delta: `${flights.length} listed`,
+      up: true,
+    },
+    { label: "Avg delay odds", value: `${(avgDelay * 100).toFixed(1)}%` },
+    {
+      label: "Open interest",
+      value: `$${formatUsdc(openInterest, 0)}`,
+      delta: "USDG locked",
+      up: true,
+    },
+    {
+      label: "Volume",
+      value: `$${formatUsdc(volume, 0)}`,
+      delta: `${trades.length} trades`,
+      up: true,
+    },
+  ];
 
   return (
     <>
-      <HeroSearch onSearch={(code) => openDetail(code)} />
+      <HeroSearch
+        popular={live.slice(0, 4).map((flight) => flight.code)}
+        onSearch={(code) => openDetail(code)}
+      />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {STATS.map((stat) => (
+        {stats.map((stat) => (
           <StatTile key={stat.label} {...stat} />
         ))}
       </div>
@@ -82,7 +86,11 @@ export function HomePage() {
               </Button>
             </div>
           </CardHeader>
-          <MarketTable rows={MOCK_MARKETS} onSelect={(market) => openDetail(market.code)} />
+          <MarketTable
+            rows={live}
+            trendOf={trendOf}
+            onSelect={(market) => openDetail(market.code)}
+          />
         </Card>
 
         <div className="flex flex-col gap-5">
@@ -92,10 +100,10 @@ export function HomePage() {
             </CardHeader>
             <div className="px-5 pb-5">
               <LineChart
-                series={[{ id: "vol", values: MOCK_VOLUME_SERIES, glaze: "rose" }]}
+                series={[{ id: "vol", values: volumeSeries, glaze: "rose" }]}
                 height={150}
-                format={(value) => `$${value}k`}
-                label="24h volume"
+                format={(value) => `$${Math.round(value).toLocaleString()}`}
+                label="Cumulative volume"
               />
             </div>
           </Card>
@@ -106,22 +114,25 @@ export function HomePage() {
             </CardHeader>
             {movers.map((market) => (
               <button
-                key={market.code}
+                key={market.id}
                 type="button"
                 onClick={() => openDetail(market.code)}
                 className="flex items-center justify-between border-b px-5 py-3 text-left transition-colors last:border-b-0 hover:bg-black/[0.03]"
                 style={{ borderColor: "var(--cordon-hairline-soft)" }}
               >
                 <span className="flex flex-col">
-                  <span style={{ fontWeight: 600, color: "var(--cordon-ink)" }}>
-                    {market.code}
-                  </span>
-                  <span style={{ color: "var(--cordon-copy-dim)", fontSize: "var(--cordon-size-micro)" }}>
+                  <span style={{ fontWeight: 600, color: "var(--cordon-ink)" }}>{market.code}</span>
+                  <span
+                    style={{
+                      color: "var(--cordon-copy-dim)",
+                      fontSize: "var(--cordon-size-micro)",
+                    }}
+                  >
                     {market.route}
                   </span>
                 </span>
                 <span className="flex items-center gap-3">
-                  <Sparkline values={market.history} width={64} height={20} />
+                  <Sparkline values={trendOf(market)} width={64} height={20} />
                   <span
                     style={{
                       color: "var(--cordon-ink)",

@@ -25,10 +25,7 @@ export function useBoardingPass() {
     [store],
   );
 
-  const referenceOf = useCallback(
-    (flightCode: string) => store[flightCode.toUpperCase()],
-    [store],
-  );
+  const referenceOf = useCallback((flightCode: string) => store[flightCode.toUpperCase()], [store]);
 
   const verify = useCallback((flightCode: string, reference: string) => {
     const next = { ...readStore(), [flightCode.toUpperCase()]: reference };

@@ -1,14 +1,14 @@
 import { createConfig, http } from "wagmi";
 import { injected } from "wagmi/connectors";
 
+import { targetChain } from "./chains";
 import { env } from "./env";
-import { arbitrumSepolia } from "./chains";
 
 export const wagmiConfig = createConfig({
-  chains: [arbitrumSepolia],
+  chains: [targetChain],
   connectors: [injected()],
   transports: {
-    [arbitrumSepolia.id]: http(env.rpcUrl),
+    [targetChain.id]: http(env.rpcUrl),
   },
 });
 

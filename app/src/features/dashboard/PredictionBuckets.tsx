@@ -1,44 +1,17 @@
-import { Button, TextField, useToast } from "cordon-ui";
+import { Button, Tag, TextField, useToast } from "cordon-ui";
 import { useState } from "react";
 import { parseUnits } from "viem";
 import { useAccount } from "wagmi";
 
-import {
-  DELAYED_OUTCOME,
-  ON_TIME_OUTCOME,
-  isConfigured,
-  strikeTimestamp,
-  useBuyOutcome,
-  useMarketState,
-  useRangeMarketAddress,
-} from "../market/useFlightMarket";
-import type { Bucket } from "./mockMarkets";
+import { DELAYED, ON_TIME, type Bucket } from "../market/model";
+import { useTransact } from "../market/useTransact";
 
-function BucketRow({
-  flightId,
-  date,
-  bucket,
-  amount,
-}: {
-  flightId: `0x${string}`;
-  date: string;
-  bucket: Bucket;
-  amount: string;
-}) {
+function BucketRow({ bucket, amount }: { bucket: Bucket; amount: string }) {
   const { isConnected } = useAccount();
   const { notify } = useToast();
-  const address = useRangeMarketAddress(
-    flightId,
-    strikeTimestamp(date, bucket.from),
-    strikeTimestamp(date, bucket.to),
-  );
-  const state = useMarketState(address);
-  const { buyOutcome, isPending } = useBuyOutcome(address);
+  const { buy, pending } = useTransact();
 
-  const live = isConfigured && Boolean(address);
-  const yes =
-    live && state.probability !== undefined ? 1 - Number(state.probability) / 1e18 : bucket.yes;
-  const no = 1 - yes;
+  const settled = bucket.resolved || bucket.voided;
 
   const trade = async (outcome: number) => {
     const parsed = parseUnits(amount || "0", 6);
@@ -47,17 +20,17 @@ function BucketRow({
       return;
     }
     try {
-      await buyOutcome(outcome, parsed);
+      await buy(bucket.address, outcome, parsed);
       notify({
         tone: "positive",
-        title: outcome === ON_TIME_OUTCOME ? "Prediction placed · Yes" : "Prediction placed · No",
-        children: `${amount} USDC · lands ${bucket.from}–${bucket.to}`,
+        title: outcome === ON_TIME ? "Prediction placed · Yes" : "Prediction placed · No",
+        children: `${amount} USDG · lands ${bucket.from}–${bucket.to}`,
       });
     } catch (error) {
       notify({
         tone: "critical",
         title: "Could not place prediction",
-        children: error instanceof Error ? error.message : "Try again",
+        children: error instanceof Error ? error.message.split("\n")[0] : "Try again",
       });
     }
   };
@@ -67,53 +40,50 @@ function BucketRow({
       className="grid items-center gap-3 border-b py-3 last:border-b-0"
       style={{ gridTemplateColumns: "1fr auto auto", borderColor: "var(--cordon-hairline-soft)" }}
     >
-      <span className="flex flex-col">
-        <span
-          style={{
-            fontWeight: 600,
-            color: "var(--cordon-ink)",
-            fontVariantNumeric: "tabular-nums",
-          }}
-        >
-          {bucket.from} – {bucket.to}
-        </span>
-        <span style={{ color: "var(--cordon-copy-dim)", fontSize: "var(--cordon-size-micro)" }}>
-          {live ? "On-chain" : "Demo"}
-        </span>
+      <span
+        style={{
+          fontWeight: 600,
+          color: "var(--cordon-ink)",
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        {bucket.from} – {bucket.to}
       </span>
-      <Button
-        variant="secondary"
-        size="sm"
-        disabled={!isConnected || !address || isPending}
-        onClick={() => {
-          void trade(ON_TIME_OUTCOME);
-        }}
-      >
-        Yes {(yes * 100).toFixed(0)}¢
-      </Button>
-      <Button
-        variant="ghost"
-        size="sm"
-        disabled={!isConnected || !address || isPending}
-        onClick={() => {
-          void trade(DELAYED_OUTCOME);
-        }}
-      >
-        No {(no * 100).toFixed(0)}¢
-      </Button>
+      {settled ? (
+        <span className="col-span-2 flex justify-end">
+          <Tag tone={bucket.voided ? "caution" : bucket.hit ? "positive" : "neutral"} size="sm">
+            {bucket.voided ? "voided" : bucket.hit ? "landed here" : "missed"}
+          </Tag>
+        </span>
+      ) : (
+        <>
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={!isConnected || pending}
+            onClick={() => {
+              void trade(ON_TIME);
+            }}
+          >
+            Yes {(bucket.yes * 100).toFixed(0)}¢
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={!isConnected || pending}
+            onClick={() => {
+              void trade(DELAYED);
+            }}
+          >
+            No {((1 - bucket.yes) * 100).toFixed(0)}¢
+          </Button>
+        </>
+      )}
     </div>
   );
 }
 
-export function PredictionBuckets({
-  flightId,
-  date,
-  buckets,
-}: {
-  flightId: `0x${string}`;
-  date: string;
-  buckets: Bucket[];
-}) {
+export function PredictionBuckets({ buckets }: { buckets: Bucket[] }) {
   const [amount, setAmount] = useState("5");
 
   return (
@@ -131,20 +101,14 @@ export function PredictionBuckets({
         </span>
         <TextField
           inputMode="decimal"
-          prefix="USDC"
+          prefix="USDG"
           value={amount}
           onChange={(event) => setAmount(event.target.value)}
         />
       </div>
       <div>
         {buckets.map((bucket) => (
-          <BucketRow
-            key={`${bucket.from}-${bucket.to}`}
-            flightId={flightId}
-            date={date}
-            bucket={bucket}
-            amount={amount}
-          />
+          <BucketRow key={bucket.address} bucket={bucket} amount={amount} />
         ))}
       </div>
     </div>

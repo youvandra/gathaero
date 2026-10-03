@@ -1,13 +1,30 @@
 import { Button, useToast } from "cordon-ui";
 import { useAccount, useConnect, useDisconnect } from "wagmi";
 
-import { shortenAddress } from "../../lib/format";
+import { useCollateralBalance } from "../market/useBalance";
+import { FAUCET_AMOUNT, useTransact } from "../market/useTransact";
+import { formatUsdc, shortenAddress } from "../../lib/format";
 
 export function WalletButton() {
   const { notify } = useToast();
   const { address, isConnected } = useAccount();
   const { connectAsync, connectors, isPending } = useConnect();
   const { disconnect } = useDisconnect();
+  const balance = useCollateralBalance();
+  const { faucet, pending } = useTransact();
+
+  const claimFaucet = async () => {
+    try {
+      await faucet();
+      notify({ tone: "positive", title: `${formatUsdc(FAUCET_AMOUNT, 0)} test USDG added` });
+    } catch (error) {
+      notify({
+        tone: "critical",
+        title: "Faucet failed",
+        children: error instanceof Error ? error.message.split("\n")[0] : "Try again",
+      });
+    }
+  };
 
   if (isConnected && address) {
     const copy = async () => {
@@ -21,6 +38,17 @@ export function WalletButton() {
 
     return (
       <div className="flex items-center gap-2">
+        <Button
+          variant="secondary"
+          size="sm"
+          loading={pending}
+          onClick={() => {
+            void claimFaucet();
+          }}
+          title="Mint test USDG"
+        >
+          {balance === undefined ? "USDG" : `${formatUsdc(balance, 0)} USDG`} +
+        </Button>
         <button
           type="button"
           onClick={() => {

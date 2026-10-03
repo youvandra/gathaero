@@ -1,69 +1,69 @@
 import { DataTable, Sparkline, Tag } from "cordon-ui";
-import type { Column, TagTone } from "cordon-ui";
+import type { Column } from "cordon-ui";
 
-import type { FlightMarket, MarketStatus } from "./mockMarkets";
+import type { FlightMarket } from "../market/model";
+import { formatUsdc } from "../../lib/format";
+import { STATUS_TONE } from "./statusTone";
 
-const STATUS_TONE: Record<MarketStatus, TagTone> = {
-  open: "neutral",
-  delayed: "critical",
-  resolved: "positive",
-};
-
-const COLUMNS: Column<FlightMarket>[] = [
-  {
-    id: "code",
-    header: "Flight",
-    sortBy: (row) => row.code,
-    cell: (row) => (
-      <span className="flex flex-col">
-        <span style={{ fontWeight: 600, color: "var(--cordon-ink)" }}>{row.code}</span>
-        <span style={{ color: "var(--cordon-copy-dim)", fontSize: "var(--cordon-size-micro)" }}>
-          {row.route}
+function buildColumns(trendOf?: (row: FlightMarket) => number[]): Column<FlightMarket>[] {
+  const columns: Column<FlightMarket>[] = [
+    {
+      id: "code",
+      header: "Flight",
+      sortBy: (row) => row.code,
+      cell: (row) => (
+        <span className="flex flex-col">
+          <span style={{ fontWeight: 600, color: "var(--cordon-ink)" }}>{row.code}</span>
+          <span style={{ color: "var(--cordon-copy-dim)", fontSize: "var(--cordon-size-micro)" }}>
+            {row.route}
+          </span>
         </span>
-      </span>
-    ),
-  },
-  {
-    id: "date",
-    header: "Date",
-    sortBy: (row) => row.date,
-    cell: (row) => row.date,
-  },
-  {
-    id: "ata",
-    header: "Scheduled",
-    numeric: true,
-    sortBy: (row) => row.scheduledArrival,
-    cell: (row) => row.scheduledArrival,
-  },
-  {
-    id: "delay",
-    header: "Delay %",
-    numeric: true,
-    sortBy: (row) => row.delayProbability,
-    cell: (row) => (
-      <span style={{ fontVariantNumeric: "tabular-nums" }}>
-        {(row.delayProbability * 100).toFixed(1)}%
-      </span>
-    ),
-  },
-  {
-    id: "volume",
-    header: "Volume",
-    numeric: true,
-    sortBy: (row) => row.volume,
-    cell: (row) => (
-      <span style={{ fontVariantNumeric: "tabular-nums" }}>
-        ${row.volume.toLocaleString()}
-      </span>
-    ),
-  },
-  {
-    id: "trend",
-    header: "Trend",
-    cell: (row) => <Sparkline values={row.history} width={72} height={22} />,
-  },
-  {
+      ),
+    },
+    {
+      id: "date",
+      header: "Date",
+      sortBy: (row) => row.arrivalTimestamp,
+      cell: (row) => row.date,
+    },
+    {
+      id: "ata",
+      header: "Arrives (UTC)",
+      numeric: true,
+      sortBy: (row) => row.arrivalTimestamp,
+      cell: (row) => row.scheduledArrival,
+    },
+    {
+      id: "delay",
+      header: "Delay %",
+      numeric: true,
+      sortBy: (row) => row.delayProbability,
+      cell: (row) => (
+        <span style={{ fontVariantNumeric: "tabular-nums" }}>
+          {(row.delayProbability * 100).toFixed(1)}%
+        </span>
+      ),
+    },
+    {
+      id: "volume",
+      header: "Volume",
+      numeric: true,
+      sortBy: (row) => Number(row.volume),
+      cell: (row) => (
+        <span style={{ fontVariantNumeric: "tabular-nums" }}>${formatUsdc(row.volume, 0)}</span>
+      ),
+    },
+  ];
+
+  if (trendOf) {
+    columns.push({
+      id: "trend",
+      header: "Trend",
+      cell: (row) => <Sparkline values={trendOf(row)} width={72} height={22} />,
+    });
+  }
+
+  columns.push({
     id: "status",
     header: "Status",
     cell: (row) => (
@@ -71,24 +71,31 @@ const COLUMNS: Column<FlightMarket>[] = [
         {row.status}
       </Tag>
     ),
-  },
-];
+  });
+
+  return columns;
+}
 
 export function MarketTable({
   rows,
   onSelect,
+  trendOf,
+  empty,
 }: {
   rows: FlightMarket[];
   onSelect?: (row: FlightMarket) => void;
+  trendOf?: (row: FlightMarket) => number[];
+  empty?: string;
 }) {
   return (
     <DataTable
-      columns={COLUMNS}
+      columns={buildColumns(trendOf)}
       rows={rows}
-      rowKey={(row) => row.code}
+      rowKey={(row) => row.id}
       density="default"
       stickyHeader={false}
       onRowClick={onSelect}
+      empty={empty ?? "No markets listed yet"}
     />
   );
 }
