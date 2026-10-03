@@ -12,6 +12,7 @@ minutes late they are paid in USDG automatically. There is no claim to file.
 [![Chainlink CRE](https://img.shields.io/badge/Chainlink-CRE%20workflow-375BD2)](cre)
 [![React](https://img.shields.io/badge/React-19-149ECA)](app)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6)](app/tsconfig.json)
+[![Licence](https://img.shields.io/badge/licence-MIT-blue)](LICENSE)
 
 | | |
 |---|---|
@@ -496,4 +497,4 @@ npm run build   # static files in dist/, served with an index.html fallback
 
 ## Licence
 
-No licence has been chosen yet. Until one is, all rights are reserved.
+[MIT](LICENSE). The Solidity sources carry `SPDX-License-Identifier: MIT`.
