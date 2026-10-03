@@ -13,10 +13,12 @@ import {
   useToast,
 } from "cordon-ui";
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAccount } from "wagmi";
 
+import { checkPassForMarket, parseBoardingPass } from "../../features/boarding/bcbp";
+import { BoardingPassScanner } from "../../features/boarding/BoardingPassScanner";
 import { STATUS_TONE } from "../../features/dashboard/statusTone";
 import { PredictionBuckets } from "../../features/dashboard/PredictionBuckets";
 import { ProbabilityPanel } from "../../features/dashboard/ProbabilityPanel";
@@ -99,6 +101,7 @@ function MarketDetail({ market }: { market: FlightMarket }) {
   const [amount, setAmount] = useState("10");
   const [passOpen, setPassOpen] = useState(false);
   const [reference, setReference] = useState("");
+  const [passMode, setPassMode] = useState<"scan" | "manual">("scan");
 
   const { isVerified, verify } = useBoardingPass();
   const verified = isVerified(market.code);
@@ -133,6 +136,46 @@ function MarketDetail({ market }: { market: FlightMarket }) {
       notify(errorToast(error));
     }
   };
+
+  const handleScan = useCallback(
+    (text: string) => {
+      const pass = parseBoardingPass(text);
+      if (!pass) {
+        notify({
+          tone: "caution",
+          title: "That isn't a boarding pass barcode",
+          children: "Scan the barcode on your boarding pass, or enter your booking reference.",
+        });
+        setPassOpen(false);
+        return;
+      }
+      const check = checkPassForMarket(pass, market);
+      if (!check.ok) {
+        notify({ tone: "caution", title: "Boarding pass doesn't match", children: check.reason });
+        setPassOpen(false);
+        return;
+      }
+      verify(market.code, pass.bookingReference);
+      notify({
+        tone: "positive",
+        title: "Boarding pass verified",
+        children: `${pass.passenger} · ${pass.flight}${pass.seat ? ` · seat ${pass.seat}` : ""}`,
+      });
+      setPassOpen(false);
+    },
+    [market, notify, verify],
+  );
+
+  const handleUnreadable = useCallback(
+    () =>
+      notify({
+        tone: "caution",
+        title: "No barcode found",
+        children:
+          "Use a sharp photo where the whole barcode is visible, or enter your booking reference.",
+      }),
+    [notify],
+  );
 
   const confirmVerify = () => {
     if (reference.trim().length < 5) {
@@ -409,18 +452,34 @@ function MarketDetail({ market }: { market: FlightMarket }) {
             <Button variant="ghost" onClick={() => setPassOpen(false)}>
               Cancel
             </Button>
-            <Button variant="primary" onClick={confirmVerify}>
-              Verify
-            </Button>
+            {passMode === "manual" ? (
+              <Button variant="primary" onClick={confirmVerify}>
+                Verify
+              </Button>
+            ) : null}
           </>
         }
       >
         <div className="flex flex-col gap-3">
-          <TextField
-            placeholder="Booking reference — e.g. ABC123"
-            value={reference}
-            onChange={(event) => setReference(event.target.value)}
+          <Segmented
+            value={passMode}
+            onValueChange={(value) => setPassMode(value as "scan" | "manual")}
+            options={[
+              { value: "scan", label: "Scan barcode" },
+              { value: "manual", label: "Booking reference" },
+            ]}
           />
+          {passMode === "scan" ? (
+            passOpen ? (
+              <BoardingPassScanner onScan={handleScan} onUnreadable={handleUnreadable} />
+            ) : null
+          ) : (
+            <TextField
+              placeholder="Booking reference — e.g. ABC123"
+              value={reference}
+              onChange={(event) => setReference(event.target.value)}
+            />
+          )}
           <p
             style={{
               margin: 0,
