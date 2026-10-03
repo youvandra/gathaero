@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet } from "react-router-dom";
 import { CordonProvider, Icon } from "cordon-ui";
 import type { IconName } from "cordon-ui";
 
+import { RequireWallet } from "../../features/wallet/RequireWallet";
 import { WalletButton } from "../../features/wallet/WalletButton";
 
 const APP_NAV: { to: string; label: string; icon: IconName; end: boolean; soon?: boolean }[] = [
@@ -138,9 +139,11 @@ export function AppShell({ children }: { children: ReactNode }) {
 export function AppLayout() {
   return (
     <CordonProvider glaze="rose" className="min-h-screen">
-      <AppShell>
-        <Outlet />
-      </AppShell>
+      <RequireWallet>
+        <AppShell>
+          <Outlet />
+        </AppShell>
+      </RequireWallet>
     </CordonProvider>
   );
 }

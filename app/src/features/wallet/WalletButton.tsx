@@ -1,5 +1,6 @@
 import { Button, useToast } from "cordon-ui";
-import { useAccount, useConnect, useDisconnect } from "wagmi";
+import { useNavigate } from "react-router-dom";
+import { useAccount, useDisconnect } from "wagmi";
 
 import { env } from "../../config/env";
 import { useCollateralBalance } from "../market/useBalance";
@@ -8,8 +9,8 @@ import { formatUsdc, shortenAddress } from "../../lib/format";
 
 export function WalletButton() {
   const { notify } = useToast();
-  const { address, isConnected } = useAccount();
-  const { connectAsync, connectors, isPending } = useConnect();
+  const { address } = useAccount();
+  const navigate = useNavigate();
   const { disconnect } = useDisconnect();
   const balance = useCollateralBalance();
   const { faucet, pending } = useTransact();
@@ -27,7 +28,7 @@ export function WalletButton() {
     }
   };
 
-  if (isConnected && address) {
+  if (address) {
     const copy = async () => {
       try {
         await navigator.clipboard.writeText(address);
@@ -73,6 +74,7 @@ export function WalletButton() {
           onClick={() => {
             disconnect();
             notify({ tone: "info", title: "Wallet disconnected" });
+            navigate("/", { replace: true });
           }}
         >
           Disconnect
@@ -81,33 +83,5 @@ export function WalletButton() {
     );
   }
 
-  const connector = connectors[0];
-
-  const handleConnect = async () => {
-    if (!connector) return;
-    try {
-      await connectAsync({ connector });
-      notify({ tone: "positive", title: "Wallet connected" });
-    } catch (error) {
-      notify({
-        tone: "critical",
-        title: "Connection failed",
-        children: error instanceof Error ? error.message : "Try again",
-      });
-    }
-  };
-
-  return (
-    <Button
-      variant="primary"
-      size="sm"
-      loading={isPending}
-      disabled={!connector}
-      onClick={() => {
-        void handleConnect();
-      }}
-    >
-      Connect Wallet
-    </Button>
-  );
+  return null;
 }

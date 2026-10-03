@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Providers } from "./app/Providers";
 import { AppLayout } from "./components/layout/AppShell";
 import { LandingPage } from "./landing/LandingPage";
+import { ConnectPage } from "./pages/connect/ConnectPage";
 import { EarnPage } from "./pages/app/EarnPage";
 import { HomePage } from "./pages/app/HomePage";
 import { MarketDetailPage } from "./pages/app/MarketDetailPage";
@@ -22,6 +23,7 @@ export default function App() {
           <Route path="/markets" element={<PublicMarketsPage />} />
           <Route path="/how" element={<HowPage />} />
           <Route path="/docs" element={<DocsPage />} />
+          <Route path="/connect" element={<ConnectPage />} />
 
           <Route path="/app" element={<AppLayout />}>
             <Route index element={<HomePage />} />
