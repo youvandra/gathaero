@@ -48,7 +48,7 @@ docs/        spec.md (product), STATUS.md (this)
   CRE reports to our workflow (the Chainlink forwarder is shared).
 - `Bought` event carries `delayedProbability` → price history without an indexer.
 
-Tests: `forge test` → **27/27 pass**.
+Tests: `forge test` → **33/33 pass** (compiled with `via_ir`).
 
 ## App (`app/src`)
 - All dashboard data is on-chain via `MarketLens` (no mocks). Hooks in `features/market/`:
@@ -77,20 +77,36 @@ cd feeder && npm run list && npm run resolve -- --watch
 ```
 Verified end-to-end on local anvil: list → faucet → buy protection → resolve delayed → claim.
 
-## Live deployment (Arbitrum Sepolia, 3 Oct 2026)
+## Live deployment (Arbitrum Sepolia, v2 — 3 Oct 2026)
 | Contract | Address |
 |---|---|
-| Mock USDG | `0xA50d9454E71aCf152399C872815ae6895cB53229` |
-| FlightRegistry | `0x045B2050aadaFf4B80a2325D63648C09F15AB1F3` |
-| FlightOracleConsumer | `0x12d15135b5bBa8EEF0d1098Aa65A15AF503d09c9` |
-| FlightOracleReceiver | `0x00Ab57acd260c594A661B6101bDF7e92267AF135` |
-| MockFeeder | `0xf86de085E63b00C9fbA300B19807C883deb961e9` |
-| MarketFactory | `0x0981D29C89682eD3d619Cb172e417a7ec152945C` |
-| MarketLens | `0x98eee74eBcCe4d109B8eA7D653A594435503f0Ab` |
+| Mock USDG (kept from v1) | `0xA50d9454E71aCf152399C872815ae6895cB53229` |
+| FlightRegistry | `0xa57225F541E5563ABF0F2C2A4F40C6B7ec8339D2` |
+| PassRegistry | `0x08c2f930750e0BF3c3AFb85f8c9a5Cd6fe6737e1` |
+| FlightOracleConsumer | `0xF629c6463ba63F372aC0138c5c2e3c511FB3b001` |
+| FlightOracleReceiver | `0x6920343789853FCef82432776bDD970E641c0CB3` |
+| MockFeeder | `0xa37C09Ad128442aB01C167F7875081D17a5393AF` |
+| MarketFactory | `0x9b0402DFe9CE7ad242E970BDcb1476e0120a6ff7` |
+| MarketLens | `0xf5144d8599dB21a30f4447112Ca267B80b49E376` |
 
-Deploy block `315241943`, deployer/operator `0x9F846D2054689a439DA8D0619f37F6c70Db03597`.
-10 real SIN departures listed from AeroDataBox (3–4 Oct). TR884 and SQ638 were registered with the
-previous day's leg before the leg-selection fix; they have no markets and the app hides them.
+Deploy block `315254447`. Verifier signer `0x7A5d66675fc1f54E090aEf404832788430e88e97` (no funds).
+v1 contracts (no pass gating) are abandoned.
+
+## Boarding pass (insurable interest)
+- Buying the **Delayed** side of a protection market reverts `NotPassenger` unless
+  `PassRegistry.isPassenger(flightId, msg.sender)`. Prediction markets and the On-time side stay open.
+- Flow: app scans the IATA BCBP barcode (camera or photo) → `POST {VITE_VERIFIER_URL}/passes`
+  → verifier checks flight number, route and day against the on-chain registry and returns an
+  EIP-712 `Pass(flightId, wallet, passHash, expiry)` signature → the user calls
+  `PassRegistry.register` from their wallet. `passHash = keccak(flightId, bookingRef, name)`;
+  one pass binds to one wallet; signatures expire after 15 minutes.
+- Not covered: BCBP barcodes are unsigned, so a forged barcode for a real flight still passes.
+  Closing that needs an airline/PNR lookup.
+- Verifier runs on the VPS as `gathaero-verifier` on `:8790` (plain HTTP). An app served over
+  HTTPS needs the verifier behind HTTPS (domain + nginx) or the browser blocks the call.
+
+Deployer/operator `0x9F846D2054689a439DA8D0619f37F6c70Db03597`.
+12 real SIN departures listed from AeroDataBox (3–4 Oct).
 The resolver runs on the VPS as systemd unit `gathaero-resolver` (`~/gathaero-feeder`, `.env` mode 600,
 MemoryMax 400M, Restart=always). Logs: `journalctl -u gathaero-resolver -f`. To update: rsync `feeder/`
 (without `node_modules`/`.env`) then `sudo systemctl restart gathaero-resolver`. Never run a second
