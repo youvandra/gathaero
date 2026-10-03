@@ -5,7 +5,7 @@ Prediction and delay protection are the same primitive — a position on a fligh
 
 - **Chain:** Arbitrum Sepolia (421614) / Arbitrum One (42161)
 - **Repo:** `github.com/youvandra/gathaero` (branch `main`)
-- **Remote push:** pending — HTTPS needs a credential (PAT) or a manual `git push`
+- **Remote:** `git@github.com:youvandra/gathaero.git` (public), pushed over SSH
 
 ## Decisions locked
 | Area | Decision |
