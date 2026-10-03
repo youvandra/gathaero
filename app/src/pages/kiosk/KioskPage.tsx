@@ -8,6 +8,7 @@ import { targetChain } from "../../config/chains";
 import { env } from "../../config/env";
 import { checkPassForMarket, parseBoardingPass } from "../../features/boarding/bcbp";
 import { BoardingPassScanner } from "../../features/boarding/BoardingPassScanner";
+import { ModeCard, PredictArt, ProtectArt } from "../../features/kiosk/ModeCard";
 import { Big, FlightCard, Screen, muted } from "../../features/kiosk/parts";
 import { requestAttestation } from "../../features/market/useBoardingPass";
 import { useFlights } from "../../features/market/useFlights";
@@ -176,53 +177,21 @@ function Kiosk() {
         <p className="m-0 text-lg" style={muted}>
           Only passengers of a flight can use it. Choose how.
         </p>
-        <div className="grid w-full gap-4 sm:grid-cols-2">
-          {[
-            {
-              mode: "protect" as const,
-              title: "Protect my flight",
-              text: "Get paid automatically if it lands more than 30 minutes late.",
-              icon: <path d="M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6z" />,
-            },
-            {
-              mode: "predict" as const,
-              title: "Trade my flight",
-              text: "Predict when it really lands, and get paid if you're right.",
-              icon: <path d="M4 18l5-6 4 3 7-9" />,
-            },
-          ].map((option) => (
-            <button
-              key={option.mode}
-              type="button"
-              onClick={() => pick(option.mode)}
-              className="flex flex-col items-start gap-3 rounded-[var(--cordon-radius-5)] border p-6 text-left transition-transform hover:-translate-y-0.5"
-              style={{
-                borderColor: "var(--cordon-hairline)",
-                background: "var(--cordon-paper-raised)",
-                color: "var(--cordon-ink)",
-              }}
-            >
-              <span
-                className="grid h-14 w-14 place-items-center rounded-2xl"
-                style={{ background: "var(--cordon-accent-quiet)" }}
-              >
-                <svg
-                  width="30"
-                  height="30"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="var(--cordon-accent)"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  {option.icon}
-                </svg>
-              </span>
-              <span style={{ fontSize: 26, fontWeight: 700 }}>{option.title}</span>
-              <span style={muted}>{option.text}</span>
-            </button>
-          ))}
+        <div className="grid w-full gap-5 sm:grid-cols-2">
+          <ModeCard
+            eyebrow="Protect"
+            title="Protect my flight"
+            text="Get paid automatically if it lands more than 30 minutes late. No claim form."
+            art={<ProtectArt />}
+            onChoose={() => pick("protect")}
+          />
+          <ModeCard
+            eyebrow="Predict"
+            title="Trade my flight"
+            text="Pick the window you think it lands in, and get paid if you're right."
+            art={<PredictArt />}
+            onChoose={() => pick("predict")}
+          />
         </div>
       </Screen>
     );
