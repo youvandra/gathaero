@@ -1,7 +1,11 @@
 {
-  "flightNumber": "SQ956",
-  "flightDate": "2026-10-01",
+  "schedule": "0 */15 * * * *",
   "aerodataboxHost": "aerodatabox.p.rapidapi.com",
-  "chainSelector": "ARBITRUM_SEPOLIA_CHAIN_SELECTOR",
-  "receiverAddress": "0x0000000000000000000000000000000000000000"
+  "chainSelectorName": "ethereum-testnet-sepolia-arbitrum-1",
+  "receiverAddress": "0x0000000000000000000000000000000000000000",
+  "gasLimit": "300000",
+  "flights": [
+    { "number": "SQ956", "date": "2026-10-04" },
+    { "number": "TR286", "date": "2026-10-04" }
+  ]
 }
