@@ -20,6 +20,7 @@ import { useMarketTrends } from "../../features/market/useMarketTrends";
 import { usePositions } from "../../features/market/usePositions";
 import { useTransact } from "../../features/market/useTransact";
 import { formatUsd, parseAmount, usd } from "../../lib/format";
+import { errorToast } from "../../lib/errors";
 
 function CardTitle({ children }: { children: string }) {
   return (
@@ -111,11 +112,7 @@ export function VaultPage() {
       setTarget(null);
       setAmount("");
     } catch (error) {
-      notify({
-        tone: "critical",
-        title: "Could not add liquidity",
-        children: error instanceof Error ? error.message.split("\n")[0] : "Try again",
-      });
+      notify(errorToast(error));
     }
   };
 

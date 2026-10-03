@@ -10,6 +10,7 @@ import {
 } from "../../features/market/usePositions";
 import { useTransact } from "../../features/market/useTransact";
 import { formatUsd, formatUsdc } from "../../lib/format";
+import { errorToast } from "../../lib/errors";
 
 const STATE_TONE: Record<Position["state"], TagTone> = {
   open: "neutral",
@@ -102,11 +103,7 @@ export function PositionsPage() {
       if (row.action === "withdraw") await removeLiquidity(row.market, row.shares);
       notify({ tone: "positive", title: "Claimed", children: `${row.flight} · ${row.label}` });
     } catch (error) {
-      notify({
-        tone: "critical",
-        title: "Could not claim",
-        children: error instanceof Error ? error.message.split("\n")[0] : "Try again",
-      });
+      notify(errorToast(error));
     }
   };
 

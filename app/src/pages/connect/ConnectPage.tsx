@@ -4,6 +4,7 @@ import { Link, Navigate, useSearchParams } from "react-router-dom";
 import { useAccount, useConnect, useSwitchChain } from "wagmi";
 
 import { targetChain } from "../../config/chains";
+import { errorToast } from "../../lib/errors";
 
 const safeNext = (value: string | null): string =>
   value && value.startsWith("/app") ? value : "/app";
@@ -36,11 +37,7 @@ export function ConnectPage() {
     try {
       await connectAsync({ connector, chainId: targetChain.id });
     } catch (error) {
-      notify({
-        tone: "critical",
-        title: "Connection failed",
-        children: error instanceof Error ? error.message.split("\n")[0] : "Try again",
-      });
+      notify(errorToast(error));
     }
   };
 

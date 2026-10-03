@@ -5,6 +5,7 @@ import { useAccount } from "wagmi";
 import { DELAYED, ON_TIME, quoteShares, type Bucket } from "../market/model";
 import { useTransact } from "../market/useTransact";
 import { parseAmount, withSlippage } from "../../lib/format";
+import { errorToast } from "../../lib/errors";
 
 function BucketRow({
   bucket,
@@ -40,11 +41,7 @@ function BucketRow({
         children: `${amount} USDG · lands ${bucket.from}–${bucket.to}`,
       });
     } catch (error) {
-      notify({
-        tone: "critical",
-        title: "Could not place prediction",
-        children: error instanceof Error ? error.message.split("\n")[0] : "Try again",
-      });
+      notify(errorToast(error));
     }
   };
 

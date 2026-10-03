@@ -6,6 +6,7 @@ import { useAccount, usePublicClient, useSwitchChain, useWriteContract } from "w
 import { targetChain } from "../../config/chains";
 import { env } from "../../config/env";
 import { collateralAbi, flightMarketAbi } from "../../lib/abi";
+import { AppError } from "../../lib/errors";
 
 export const FAUCET_AMOUNT = 1_000_000_000n;
 
@@ -20,15 +21,36 @@ export function useTransact() {
   const settle = async (hash: Hash) => {
     if (!publicClient) throw new Error("No RPC client");
     const receipt = await publicClient.waitForTransactionReceipt({ hash });
-    if (receipt.status !== "success") throw new Error("Transaction reverted");
+    if (receipt.status !== "success") {
+      throw new AppError("Transaction failed", "It was mined but reverted. Refresh and try again.");
+    }
   };
 
   const ensureChain = async () => {
     if (chainId !== targetChain.id) await switchChainAsync({ chainId: targetChain.id });
   };
 
+  const ensureBalance = async (amount: bigint) => {
+    if (!publicClient || !address)
+      throw new AppError("Wallet not connected", "Connect a wallet first.");
+    const balance = await publicClient.readContract({
+      address: env.contracts.collateral,
+      abi: collateralAbi,
+      functionName: "balanceOf",
+      args: [address],
+    });
+    if (balance >= amount) return;
+    throw new AppError(
+      "Not enough USDG",
+      env.faucet
+        ? "Tap your USDG balance at the top to get test USDG, then try again."
+        : "Add USDG to this wallet, then try again.",
+    );
+  };
+
   const ensureAllowance = async (spender: Address, amount: bigint) => {
-    if (!publicClient || !address) throw new Error("Connect a wallet first");
+    if (!publicClient || !address)
+      throw new AppError("Wallet not connected", "Connect a wallet first.");
     const allowance = await publicClient.readContract({
       address: env.contracts.collateral,
       abi: collateralAbi,
@@ -47,7 +69,7 @@ export function useTransact() {
   };
 
   const run = async (steps: () => Promise<Hash>) => {
-    if (!address) throw new Error("Connect a wallet first");
+    if (!address) throw new AppError("Wallet not connected", "Connect a wallet first.");
     setPending(true);
     try {
       await ensureChain();
@@ -65,6 +87,7 @@ export function useTransact() {
     pending,
     buy: (market: Address, outcome: number, amount: bigint, minShares: bigint) =>
       run(async () => {
+        await ensureBalance(amount);
         await ensureAllowance(market, amount);
         return writeContractAsync({
           address: market,
@@ -75,6 +98,7 @@ export function useTransact() {
       }),
     addLiquidity: (market: Address, amount: bigint) =>
       run(async () => {
+        await ensureBalance(amount);
         await ensureAllowance(market, amount);
         return writeContractAsync({
           address: market,
@@ -96,7 +120,7 @@ export function useTransact() {
     refund: (market: Address) => write(market, "refund"),
     faucet: () =>
       run(() => {
-        if (!address) throw new Error("Connect a wallet first");
+        if (!address) throw new AppError("Wallet not connected", "Connect a wallet first.");
         return writeContractAsync({
           address: env.contracts.collateral,
           abi: collateralAbi,

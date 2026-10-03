@@ -6,6 +6,7 @@ import { env } from "../../config/env";
 import { useCollateralBalance } from "../market/useBalance";
 import { FAUCET_AMOUNT, useTransact } from "../market/useTransact";
 import { formatUsdc, shortenAddress } from "../../lib/format";
+import { errorToast } from "../../lib/errors";
 
 export function WalletButton() {
   const { notify } = useToast();
@@ -20,11 +21,7 @@ export function WalletButton() {
       await faucet();
       notify({ tone: "positive", title: `${formatUsdc(FAUCET_AMOUNT, 0)} test USDG added` });
     } catch (error) {
-      notify({
-        tone: "critical",
-        title: "Faucet failed",
-        children: error instanceof Error ? error.message.split("\n")[0] : "Try again",
-      });
+      notify(errorToast(error));
     }
   };
 

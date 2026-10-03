@@ -26,6 +26,7 @@ import { useBoardingPass } from "../../features/market/useBoardingPass";
 import { pickFlight, useFlights } from "../../features/market/useFlights";
 import { useTransact } from "../../features/market/useTransact";
 import { formatUsdc, parseAmount, usd, withSlippage } from "../../lib/format";
+import { errorToast } from "../../lib/errors";
 
 type Tab = "protection" | "prediction";
 
@@ -129,11 +130,7 @@ function MarketDetail({ market }: { market: FlightMarket }) {
       });
       setBuyOpen(false);
     } catch (error) {
-      notify({
-        tone: "critical",
-        title: "Could not buy protection",
-        children: error instanceof Error ? error.message.split("\n")[0] : "Try again",
-      });
+      notify(errorToast(error));
     }
   };
 
@@ -157,11 +154,7 @@ function MarketDetail({ market }: { market: FlightMarket }) {
       await refund(protection.address);
       notify({ tone: "positive", title: "Refund claimed", children: `${market.code} · unwound` });
     } catch (error) {
-      notify({
-        tone: "critical",
-        title: "Nothing to refund",
-        children: error instanceof Error ? error.message.split("\n")[0] : "Try again",
-      });
+      notify(errorToast(error));
     }
   };
 
