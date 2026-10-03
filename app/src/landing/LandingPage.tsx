@@ -5,6 +5,7 @@ import { Menu, X } from "lucide-react";
 import videoSrc from "../assets/hero.mp4";
 import { isLive } from "../features/market/model";
 import { useFlights } from "../features/market/useFlights";
+import { formatNumber, usd } from "../lib/format";
 import { CTA_GRADIENT, SILKSCREEN } from "../lib/theme";
 
 const NAV_LINKS = [
@@ -14,9 +15,7 @@ const NAV_LINKS = [
 ];
 
 function Logo() {
-  return (
-    <span className="text-lg font-semibold text-[#010101] lg:text-white">gathæro</span>
-  );
+  return <span className="text-lg font-semibold text-[#010101] lg:text-white">gathæro</span>;
 }
 
 export function LandingPage() {
@@ -24,6 +23,26 @@ export function LandingPage() {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const { flights } = useFlights();
+  const live = flights.filter(isLive);
+  const avgDelay =
+    live.length > 0 ? live.reduce((sum, f) => sum + f.delayProbability, 0) / live.length : 0;
+  const liveStats = [
+    { label: "Avg delay odds", value: `${(avgDelay * 100).toFixed(1)}%` },
+    {
+      label: "USDG locked",
+      value: usd(
+        flights.reduce((sum, f) => sum + f.openInterest, 0n),
+        0,
+      ),
+    },
+    {
+      label: "Volume",
+      value: usd(
+        flights.reduce((sum, f) => sum + f.volume, 0n),
+        0,
+      ),
+    },
+  ];
 
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
@@ -176,43 +195,28 @@ export function LandingPage() {
                   className="text-3xl tracking-tight text-[#010101] sm:text-4xl lg:text-white"
                   style={{ fontFamily: SILKSCREEN, fontWeight: 400 }}
                 >
-                  {flights.filter(isLive).length.toLocaleString()}
+                  {formatNumber(live.length)}
                 </div>
                 <p className="mt-3 text-sm leading-relaxed text-[#010101]/70 sm:mt-4 lg:text-white/70">
                   Flights priced and protected on Gathaero right now.
                 </p>
               </div>
 
-              <div className="rounded-2xl bg-white/10 p-5 backdrop-blur-lg sm:w-64 sm:p-6">
-                <div className="mb-3 flex items-center gap-2 sm:mb-4">
-                  <div className="flex h-6 w-6 items-center justify-center rounded-md bg-black text-xs font-bold text-white">
-                    G
+              <div className="flex flex-col gap-3 rounded-2xl bg-white/10 p-5 backdrop-blur-lg sm:w-64 sm:p-6">
+                {liveStats.map((stat) => (
+                  <div key={stat.label} className="flex items-baseline justify-between gap-3">
+                    <span className="text-sm text-[#010101]/70 lg:text-white/70">{stat.label}</span>
+                    <span
+                      className="text-lg text-[#010101] lg:text-white"
+                      style={{ fontFamily: SILKSCREEN }}
+                    >
+                      {stat.value}
+                    </span>
                   </div>
-                  <span className="text-sm font-semibold text-[#010101] lg:text-white">
-                    Skyline
-                  </span>
-                </div>
-
-                <p className="text-sm leading-relaxed text-[#010101]/80 lg:text-white/80">
-                  "With Gathaero a delayed flight stops being bad luck — it settles
-                  itself the moment we land."
+                ))}
+                <p className="mt-1 text-xs text-[#010101]/60 lg:text-white/60">
+                  Live from Arbitrum, refreshed every 10 seconds.
                 </p>
-
-                <div className="mt-4 flex items-center gap-3 sm:mt-5">
-                  <img
-                    src="https://i.pravatar.cc/72?img=12"
-                    alt="Sara Klein"
-                    className="h-9 w-9 rounded-full bg-white/20 object-cover"
-                  />
-                  <div>
-                    <div className="text-sm font-semibold text-[#010101] lg:text-white">
-                      Sara Klein
-                    </div>
-                    <div className="text-xs text-[#010101]/60 lg:text-white/60">
-                      Frequent flyer
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
           </div>

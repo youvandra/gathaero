@@ -7,7 +7,8 @@ import { StatTile } from "../../features/dashboard/StatTile";
 import { isLive } from "../../features/market/model";
 import { useFlights } from "../../features/market/useFlights";
 import { useMarketTrends } from "../../features/market/useMarketTrends";
-import { formatUsdc } from "../../lib/format";
+import { formatNumber, formatUsd, usd } from "../../lib/format";
+import { usePortfolio } from "../../features/market/usePortfolio";
 
 function CardTitle({ children }: { children: string }) {
   return (
@@ -36,25 +37,31 @@ export function HomePage() {
   };
   const movers = [...live].sort((a, b) => movement(b.code) - movement(a.code)).slice(0, 4);
 
+  const portfolio = usePortfolio();
   const stats = [
     {
-      label: "Flights live",
-      value: live.length.toString(),
-      delta: `${flights.length} listed`,
-      up: true,
-    },
-    { label: "Avg delay odds", value: `${(avgDelay * 100).toFixed(1)}%` },
-    {
-      label: "Open interest",
-      value: `$${formatUsdc(openInterest, 0)}`,
-      delta: "USDG locked",
+      label: "Wallet balance",
+      value: portfolio.balance === undefined ? "—" : usd(portfolio.balance),
+      delta: "USDG",
       up: true,
     },
     {
-      label: "Volume",
-      value: `$${formatUsdc(volume, 0)}`,
-      delta: `${trades.length} trades`,
+      label: "Open positions",
+      value: formatUsd(portfolio.openValue),
+      delta: `${portfolio.openCount} open`,
       up: true,
+    },
+    {
+      label: "Protected",
+      value: formatUsd(portfolio.protectedPayout),
+      delta: "pays if delayed",
+      up: true,
+    },
+    {
+      label: "Claimable",
+      value: formatUsd(portfolio.claimableValue),
+      delta: `${portfolio.claimableCount} ready`,
+      up: portfolio.claimableCount > 0,
     },
   ];
 
@@ -96,13 +103,22 @@ export function HomePage() {
         <div className="flex flex-col gap-5">
           <Card>
             <CardHeader>
-              <CardTitle>Platform volume</CardTitle>
+              <CardTitle>Platform</CardTitle>
+              <p
+                style={{
+                  margin: "4px 0 0",
+                  color: "var(--cordon-copy-dim)",
+                  fontSize: "var(--cordon-size-caption)",
+                }}
+              >
+                {`${live.length} live · ${(avgDelay * 100).toFixed(1)}% avg delay odds · ${usd(openInterest, 0)} locked · ${usd(volume, 0)} volume · ${formatNumber(trades.length)} trades`}
+              </p>
             </CardHeader>
             <div className="px-5 pb-5">
               <LineChart
                 series={[{ id: "vol", values: volumeSeries, glaze: "rose" }]}
                 height={150}
-                format={(value) => `$${Math.round(value).toLocaleString()}`}
+                format={(value) => formatUsd(value, 0)}
                 label="Cumulative volume"
               />
             </div>

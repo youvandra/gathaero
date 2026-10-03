@@ -2,7 +2,7 @@ import { DataTable, Sparkline, Tag } from "cordon-ui";
 import type { Column } from "cordon-ui";
 
 import type { FlightMarket } from "../market/model";
-import { formatUsdc } from "../../lib/format";
+import { usd } from "../../lib/format";
 import { STATUS_TONE } from "./statusTone";
 
 function buildColumns(trendOf?: (row: FlightMarket) => number[]): Column<FlightMarket>[] {
@@ -50,7 +50,7 @@ function buildColumns(trendOf?: (row: FlightMarket) => number[]): Column<FlightM
       numeric: true,
       sortBy: (row) => Number(row.volume),
       cell: (row) => (
-        <span style={{ fontVariantNumeric: "tabular-nums" }}>${formatUsdc(row.volume, 0)}</span>
+        <span style={{ fontVariantNumeric: "tabular-nums" }}>{usd(row.volume, 0)}</span>
       ),
     },
   ];

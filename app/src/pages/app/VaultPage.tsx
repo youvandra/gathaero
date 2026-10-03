@@ -19,7 +19,7 @@ import { useFlights } from "../../features/market/useFlights";
 import { useMarketTrends } from "../../features/market/useMarketTrends";
 import { usePositions } from "../../features/market/usePositions";
 import { useTransact } from "../../features/market/useTransact";
-import { formatUsdc, parseAmount } from "../../lib/format";
+import { formatUsd, parseAmount, usd } from "../../lib/format";
 
 function CardTitle({ children }: { children: string }) {
   return (
@@ -47,7 +47,7 @@ function buildColumns(onAdd: (row: FlightMarket) => void, canAdd: boolean): Colu
       header: "Locked",
       numeric: true,
       sortBy: (row) => Number(row.protection?.locked ?? 0n),
-      cell: (row) => `$${formatUsdc(row.protection?.locked ?? 0n, 0)}`,
+      cell: (row) => usd(row.protection?.locked ?? 0n, 0),
     },
     {
       id: "premium",
@@ -61,7 +61,7 @@ function buildColumns(onAdd: (row: FlightMarket) => void, canAdd: boolean): Colu
       header: "Volume",
       numeric: true,
       sortBy: (row) => Number(row.protection?.volume ?? 0n),
-      cell: (row) => `$${formatUsdc(row.protection?.volume ?? 0n, 0)}`,
+      cell: (row) => usd(row.protection?.volume ?? 0n, 0),
     },
     {
       id: "action",
@@ -122,9 +122,9 @@ export function VaultPage() {
   return (
     <>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatTile label="TVL" value={`$${formatUsdc(tvl, 0)}`} delta="protection pools" up />
-        <StatTile label="Premium volume" value={`$${formatUsdc(volume, 0)}`} up />
-        <StatTile label="Your liquidity" value={`$${myLiquidity.toFixed(2)}`} />
+        <StatTile label="TVL" value={usd(tvl, 0)} delta="protection pools" up />
+        <StatTile label="Premium volume" value={usd(volume, 0)} up />
+        <StatTile label="Your liquidity" value={formatUsd(myLiquidity)} />
         <StatTile label="Open pools" value={pools.length.toString()} />
       </div>
 
@@ -137,7 +137,7 @@ export function VaultPage() {
             <LineChart
               series={[{ id: "vol", values: volumeSeries, glaze: "rose" }]}
               height={190}
-              format={(value) => `$${Math.round(value).toLocaleString()}`}
+              format={(value) => formatUsd(value, 0)}
               label="Volume"
             />
           </div>

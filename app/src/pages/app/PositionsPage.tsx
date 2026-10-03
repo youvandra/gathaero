@@ -9,7 +9,7 @@ import {
   type PositionAction,
 } from "../../features/market/usePositions";
 import { useTransact } from "../../features/market/useTransact";
-import { formatUsdc } from "../../lib/format";
+import { formatUsd, formatUsdc } from "../../lib/format";
 
 const STATE_TONE: Record<Position["state"], TagTone> = {
   open: "neutral",
@@ -59,7 +59,7 @@ function buildColumns(onAction: (row: Position) => void, pending: boolean): Colu
       header: "Value",
       numeric: true,
       sortBy: (row) => row.value,
-      cell: (row) => `$${row.value.toFixed(2)}`,
+      cell: (row) => formatUsd(row.value),
     },
     {
       id: "state",
@@ -118,15 +118,10 @@ export function PositionsPage() {
     <>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatTile label="Open positions" value={open.length.toString()} />
-        <StatTile
-          label="Open value"
-          value={`$${openValue.toFixed(2)}`}
-          delta="at market price"
-          up
-        />
+        <StatTile label="Open value" value={formatUsd(openValue)} delta="at market price" up />
         <StatTile
           label="Claimable"
-          value={`$${claimableValue.toFixed(2)}`}
+          value={formatUsd(claimableValue)}
           delta={`${claimable.length} ready`}
           up
         />

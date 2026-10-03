@@ -25,7 +25,7 @@ import { probabilitySeries, useTrades } from "../../features/market/useActivity"
 import { useBoardingPass } from "../../features/market/useBoardingPass";
 import { pickFlight, useFlights } from "../../features/market/useFlights";
 import { useTransact } from "../../features/market/useTransact";
-import { formatUsdc, parseAmount, withSlippage } from "../../lib/format";
+import { formatUsdc, parseAmount, usd, withSlippage } from "../../lib/format";
 
 type Tab = "protection" | "prediction";
 
@@ -315,7 +315,7 @@ function MarketDetail({ market }: { market: FlightMarket }) {
                 <Row label="Scheduled (UTC)" value={market.scheduledArrival} />
                 <Row label="Day" value={market.date} />
                 <Row label="Windows" value={market.buckets.length.toString()} />
-                <Row label="Open interest" value={`$${formatUsdc(market.openInterest, 0)}`} />
+                <Row label="Open interest" value={usd(market.openInterest, 0)} />
               </div>
               <BarChart
                 data={market.buckets.map((bucket) => ({
@@ -367,8 +367,8 @@ function MarketDetail({ market }: { market: FlightMarket }) {
               value={`${market.date} · ${market.scheduledArrival} UTC`}
             />
             <Row label="Delay threshold" value={`> ${market.thresholdMinutes} min`} />
-            <Row label="Volume" value={`$${formatUsdc(market.volume)}`} />
-            <Row label="Locked" value={`$${formatUsdc(market.openInterest)}`} />
+            <Row label="Volume" value={usd(market.volume)} />
+            <Row label="Locked" value={usd(market.openInterest)} />
             <Row
               label="Oracle"
               value={market.delayMinutes === null ? "pending" : outcomeLine(market)}
