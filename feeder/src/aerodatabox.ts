@@ -20,7 +20,7 @@ export type FlightSnapshot = {
   outcome: FlightOutcome;
   route: string | null;
   scheduledArrival: number;
-  delayMinutes: number;
+  actualArrival: number;
 };
 
 const VOID_STATUSES = new Set(["Canceled", "CanceledUncertain", "Diverted"]);
@@ -43,6 +43,7 @@ export async function fetchFlight(
   flightNumber: string,
   dateLocal: string,
   api: RapidApi,
+  route?: string,
 ): Promise<FlightSnapshot> {
   const response = await fetch(`https://${api.host}/flights/number/${flightNumber}/${dateLocal}`, {
     headers: { "X-RapidAPI-Key": api.key, "X-RapidAPI-Host": api.host },
@@ -51,19 +52,19 @@ export async function fetchFlight(
   if (response.status === 204) throw new Error(`No data for ${flightNumber} on ${dateLocal}`);
   if (!response.ok) throw new Error(`AeroDataBox error ${response.status}`);
 
-  const flight = ((await response.json()) as AeroDataBoxFlight[])[0];
+  const legs = (await response.json()) as AeroDataBoxFlight[];
+  const flight = legs.find((leg) => route !== undefined && routeOf(leg) === route) ?? legs[0];
   const scheduled = flight?.arrival.scheduledTime?.utc;
   if (!flight || !scheduled) throw new Error(`No arrival schedule for ${flightNumber}`);
 
   const arrival = flight.arrival;
   const actual = arrival.runwayTime?.utc ?? arrival.revisedTime?.utc ?? scheduled;
-  const scheduledArrival = parseUtc(scheduled);
 
   return {
     status: flight.status,
     outcome: outcomeOf(flight.status),
     route: routeOf(flight),
-    scheduledArrival: Math.floor(scheduledArrival / 1000),
-    delayMinutes: Math.round((parseUtc(actual) - scheduledArrival) / 60_000),
+    scheduledArrival: Math.floor(parseUtc(scheduled) / 1000),
+    actualArrival: Math.floor(parseUtc(actual) / 1000),
   };
 }

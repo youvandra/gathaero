@@ -1,4 +1,4 @@
-import { maxUint256, parseUnits, type Address, type Hex } from "viem";
+import { maxUint256, parseUnits, zeroAddress, type Address, type Hex } from "viem";
 
 import { flightMarketAbi, flightRegistryAbi, marketFactoryAbi, mockERC20Abi } from "./abi.js";
 import { fetchFlight } from "./aerodatabox.js";
@@ -27,6 +27,7 @@ const DEFAULT_BUCKETS: Bucket[] = [
   { fromMinutes: 30, toMinutes: 60, yes: 0.08 },
 ];
 
+const MIN_LEAD_SECONDS = 30 * 60;
 const PROTECTION_LIQUIDITY = parseUnits("2000", 6);
 const RANGE_LIQUIDITY = parseUnits("500", 6);
 
@@ -56,6 +57,13 @@ async function seedMarket(
   liquidity: bigint,
   delayedProbability: number,
 ): Promise<void> {
+  const seeded = await clients.publicClient.readContract({
+    address: market,
+    abi: flightMarketAbi,
+    functionName: "totalShares",
+  });
+  if (seeded > 0n) return;
+
   const trade = seedTradeFor(liquidity, delayedProbability);
   await topUp(clients, config, liquidity + (trade?.amount ?? 0n));
   await confirm(
@@ -84,12 +92,20 @@ async function seedMarket(
       address: market,
       abi: flightMarketAbi,
       functionName: "buy",
-      args: [trade.outcome, trade.amount],
+      args: [trade.outcome, trade.amount, 0n],
     }),
   );
 }
 
-async function createProtection(clients: Clients, config: FeederConfig, flightId: Hex) {
+async function ensureProtection(clients: Clients, config: FeederConfig, flightId: Hex) {
+  const existing = await clients.publicClient.readContract({
+    address: config.contracts.factory,
+    abi: marketFactoryAbi,
+    functionName: "marketOf",
+    args: [flightId],
+  });
+  if (existing !== zeroAddress) return existing;
+
   const { request, result } = await clients.publicClient.simulateContract({
     account: clients.account,
     address: config.contracts.factory,
@@ -101,13 +117,21 @@ async function createProtection(clients: Clients, config: FeederConfig, flightId
   return result;
 }
 
-async function createRange(
+async function ensureRange(
   clients: Clients,
   config: FeederConfig,
   flightId: Hex,
   lower: bigint,
   upper: bigint,
 ) {
+  const existing = await clients.publicClient.readContract({
+    address: config.contracts.factory,
+    abi: marketFactoryAbi,
+    functionName: "rangeMarketOf",
+    args: [flightId, lower, upper],
+  });
+  if (existing !== zeroAddress) return existing;
+
   const { request, result } = await clients.publicClient.simulateContract({
     account: clients.account,
     address: config.contracts.factory,
@@ -127,7 +151,7 @@ async function resolveSchedule(config: FeederConfig, listing: Listing) {
   if (!config.rapidApi) return fallback;
 
   try {
-    const live = await fetchFlight(listing.number, listing.date, config.rapidApi);
+    const live = await fetchFlight(listing.number, listing.date, config.rapidApi, listing.route);
     return { route: live.route ?? listing.route, scheduledArrival: live.scheduledArrival };
   } catch (error) {
     console.warn(`  schedule lookup failed, using flights.json: ${(error as Error).message}`);
@@ -135,8 +159,12 @@ async function resolveSchedule(config: FeederConfig, listing: Listing) {
   }
 }
 
-async function list(clients: Clients, config: FeederConfig, listing: Listing): Promise<void> {
-  const flightId = flightIdOf(listing.number, listing.date);
+async function registerOnce(
+  clients: Clients,
+  config: FeederConfig,
+  flightId: Hex,
+  listing: Listing,
+): Promise<{ route: string; scheduledArrival: number }> {
   const exists = await clients.publicClient.readContract({
     address: config.contracts.registry,
     abi: flightRegistryAbi,
@@ -144,15 +172,16 @@ async function list(clients: Clients, config: FeederConfig, listing: Listing): P
     args: [flightId],
   });
   if (exists) {
-    console.log(`${listing.number} ${listing.date} already listed`);
-    return;
+    const flight = await clients.publicClient.readContract({
+      address: config.contracts.registry,
+      abi: flightRegistryAbi,
+      functionName: "getFlight",
+      args: [flightId],
+    });
+    return { route: flight.route, scheduledArrival: Number(flight.scheduledArrival) };
   }
 
   const schedule = await resolveSchedule(config, listing);
-  console.log(
-    `${listing.number} ${listing.date} ${schedule.route} arr ${new Date(schedule.scheduledArrival * 1000).toISOString()}`,
-  );
-
   await confirm(
     clients,
     clients.walletClient.writeContract({
@@ -168,15 +197,28 @@ async function list(clients: Clients, config: FeederConfig, listing: Listing): P
       ],
     }),
   );
+  return schedule;
+}
 
-  const protection = await createProtection(clients, config, flightId);
+async function list(clients: Clients, config: FeederConfig, listing: Listing): Promise<void> {
+  const flightId = flightIdOf(listing.number, listing.date);
+  const schedule = await registerOnce(clients, config, flightId, listing);
+  const arrival = new Date(schedule.scheduledArrival * 1000).toISOString();
+
+  if (schedule.scheduledArrival <= Math.floor(Date.now() / 1000) + MIN_LEAD_SECONDS) {
+    console.log(`${listing.number} ${listing.date} arrives ${arrival}, too late to trade, skipped`);
+    return;
+  }
+  console.log(`${listing.number} ${listing.date} ${schedule.route} arr ${arrival}`);
+
+  const protection = await ensureProtection(clients, config, flightId);
   await seedMarket(clients, config, protection, PROTECTION_LIQUIDITY, listing.delayProbability);
   console.log(`  protection ${protection}`);
 
   for (const bucket of listing.buckets ?? DEFAULT_BUCKETS) {
     const lower = BigInt(schedule.scheduledArrival + bucket.fromMinutes * 60);
     const upper = BigInt(schedule.scheduledArrival + bucket.toMinutes * 60);
-    const range = await createRange(clients, config, flightId, lower, upper);
+    const range = await ensureRange(clients, config, flightId, lower, upper);
     await seedMarket(clients, config, range, RANGE_LIQUIDITY, 1 - bucket.yes);
     console.log(`  range ${bucket.fromMinutes}..${bucket.toMinutes} ${range}`);
   }

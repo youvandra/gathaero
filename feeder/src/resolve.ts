@@ -10,7 +10,7 @@ type Verdict = { kind: "landed"; delayMinutes: number } | { kind: "void" } | { k
 
 type ManualVerdict = { flightId: Hex; verdict: Verdict };
 
-const WATCH_INTERVAL_MS = 5 * 60_000;
+const WATCH_INTERVAL_MS = 10 * 60_000;
 
 async function readFlights(clients: Clients, config: FeederConfig) {
   return clients.publicClient.readContract({
@@ -30,9 +30,10 @@ const openMarketsOf = (flight: FlightView): Address[] =>
 
 async function lookUp(config: FeederConfig, flight: FlightView, date: string): Promise<Verdict> {
   if (!config.rapidApi) return { kind: "pending" };
-  const snapshot = await fetchFlight(flight.number, date, config.rapidApi);
-  console.log(`  ${flight.number} status ${snapshot.status}, delay ${snapshot.delayMinutes} min`);
-  if (snapshot.outcome === "landed") return { kind: "landed", delayMinutes: snapshot.delayMinutes };
+  const snapshot = await fetchFlight(flight.number, date, config.rapidApi, flight.route);
+  const delayMinutes = Math.round((snapshot.actualArrival - Number(flight.scheduledArrival)) / 60);
+  console.log(`  ${flight.number} status ${snapshot.status}, delay ${delayMinutes} min`);
+  if (snapshot.outcome === "landed") return { kind: "landed", delayMinutes };
   return { kind: snapshot.outcome };
 }
 
@@ -150,9 +151,10 @@ async function main(): Promise<void> {
   await sweep(clients, config, manual);
   if (!args.includes("--watch") || manual) return;
 
-  setInterval(() => {
-    sweep(clients, config, null).catch((error: unknown) => console.error(error));
-  }, WATCH_INTERVAL_MS);
+  for (;;) {
+    await new Promise((done) => setTimeout(done, WATCH_INTERVAL_MS));
+    await sweep(clients, config, null).catch((error: unknown) => console.error(error));
+  }
 }
 
 main().catch((error: unknown) => {
