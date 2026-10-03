@@ -1,6 +1,4 @@
 [
-  {"number": "AK714", "date": "2026-10-03", "route": "SIN-KUL", "scheduledArrival": "2026-10-03T09:15:00Z", "delayThresholdMinutes": 30, "delayProbability": 0.14},
-  {"number": "SQ962", "date": "2026-10-03", "route": "SIN-CGK", "scheduledArrival": "2026-10-03T10:10:00Z", "delayThresholdMinutes": 30, "delayProbability": 0.09},
   {"number": "TR282", "date": "2026-10-03", "route": "SIN-DPS", "scheduledArrival": "2026-10-03T10:45:00Z", "delayThresholdMinutes": 30, "delayProbability": 0.18},
   {"number": "SQ944", "date": "2026-10-03", "route": "SIN-DPS", "scheduledArrival": "2026-10-03T10:50:00Z", "delayThresholdMinutes": 30, "delayProbability": 0.1},
   {"number": "MH608", "date": "2026-10-03", "route": "SIN-KUL", "scheduledArrival": "2026-10-03T11:25:00Z", "delayThresholdMinutes": 30, "delayProbability": 0.12},
@@ -10,5 +8,11 @@
   {"number": "NH844", "date": "2026-10-03", "route": "SIN-HND", "scheduledArrival": "2026-10-03T21:10:00Z", "delayThresholdMinutes": 30, "delayProbability": 0.13},
   {"number": "SQ638", "date": "2026-10-03", "route": "SIN-NRT", "scheduledArrival": "2026-10-03T23:00:00Z", "delayThresholdMinutes": 30, "delayProbability": 0.11},
   {"number": "NH804", "date": "2026-10-04", "route": "SIN-NRT", "scheduledArrival": "2026-10-03T23:55:00Z", "delayThresholdMinutes": 30, "delayProbability": 0.11},
-  {"number": "SQ956", "date": "2026-10-04", "route": "SIN-CGK", "scheduledArrival": "2026-10-04T02:55:00Z", "delayThresholdMinutes": 30, "delayProbability": 0.08}
+  {"number": "SQ956", "date": "2026-10-04", "route": "SIN-CGK", "scheduledArrival": "2026-10-04T02:55:00Z", "delayThresholdMinutes": 30, "delayProbability": 0.08},
+  {"number": "AK714", "date": "2026-10-04", "route": "SIN-KUL", "scheduledArrival": "2026-10-04T09:15:00Z", "delayThresholdMinutes": 30, "delayProbability": 0.14},
+  {"number": "SQ962", "date": "2026-10-04", "route": "SIN-CGK", "scheduledArrival": "2026-10-04T10:10:00Z", "delayThresholdMinutes": 30, "delayProbability": 0.09},
+  {"number": "TR282", "date": "2026-10-04", "route": "SIN-DPS", "scheduledArrival": "2026-10-04T10:45:00Z", "delayThresholdMinutes": 30, "delayProbability": 0.18},
+  {"number": "SQ944", "date": "2026-10-04", "route": "SIN-DPS", "scheduledArrival": "2026-10-04T10:50:00Z", "delayThresholdMinutes": 30, "delayProbability": 0.1},
+  {"number": "MH608", "date": "2026-10-04", "route": "SIN-KUL", "scheduledArrival": "2026-10-04T11:25:00Z", "delayThresholdMinutes": 30, "delayProbability": 0.12},
+  {"number": "GA823", "date": "2026-10-04", "route": "SIN-CGK", "scheduledArrival": "2026-10-04T12:00:00Z", "delayThresholdMinutes": 30, "delayProbability": 0.16}
 ]
