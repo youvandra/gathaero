@@ -45,6 +45,7 @@ struct PositionView {
     uint256 onTimeBalance;
     uint256 delayedBalance;
     uint256 lpShares;
+    uint256 lpValue;
     uint256 contribution;
     uint256 delayedProbability;
     bool resolved;
@@ -155,6 +156,7 @@ contract MarketLens {
             onTimeBalance: onTime,
             delayedBalance: delayed,
             lpShares: lpShares,
+            lpValue: lpShares == 0 ? 0 : _lpValue(m, user, lpShares),
             contribution: contribution,
             delayedProbability: m.probability(Outcome.Delayed),
             resolved: m.resolved(),
@@ -162,6 +164,26 @@ contract MarketLens {
             winning: m.winning()
         });
         return count + 1;
+    }
+
+    function _lpValue(FlightMarket m, address user, uint256 lpShares)
+        private
+        view
+        returns (uint256)
+    {
+        if (m.voided()) return m.principal(user);
+
+        (uint256 reserveOnTime, uint256 reserveDelayed) = m.reserves();
+        uint256 totalShares = m.totalShares();
+        if (m.resolved()) {
+            uint256 reserveWinning = m.winning() == Outcome.Delayed ? reserveDelayed : reserveOnTime;
+            return (lpShares * reserveWinning) / totalShares;
+        }
+
+        uint256 sum = reserveOnTime + reserveDelayed;
+        if (sum == 0) return 0;
+        uint256 poolValue = (2 * reserveOnTime * reserveDelayed) / sum;
+        return (lpShares * poolValue) / totalShares;
     }
 
     function _marketCount(bytes32[] memory ids) private view returns (uint256 total) {

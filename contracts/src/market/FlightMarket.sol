@@ -18,6 +18,7 @@ import {
     MarketNotResolved,
     NothingToRedeem,
     ResolutionNotFinal,
+    SlippageExceeded,
     Unauthorized,
     ZeroAddress,
     ZeroAmount
@@ -45,6 +46,7 @@ contract FlightMarket is IERC1155Receiver, ReentrancyGuard {
     uint256 public lpCollateral;
     uint256 public volume;
     mapping(address => uint256) public shares;
+    mapping(address => uint256) public principal;
     mapping(address => uint256) public contributions;
 
     bool public resolved;
@@ -107,15 +109,29 @@ contract FlightMarket is IERC1155Receiver, ReentrancyGuard {
         if (block.timestamp >= scheduledArrival) revert MarketClosed();
         if (amount == 0) revert ZeroAmount();
 
-        sharesMinted = totalShares == 0 ? amount : (amount * totalShares) / lpCollateral;
+        uint256 onTimeId = outcome.ON_TIME();
+        uint256 delayedId = outcome.DELAYED();
+        uint256 reserveOnTime = outcome.balanceOf(address(this), onTimeId);
+        uint256 reserveDelayed = outcome.balanceOf(address(this), delayedId);
 
         collateral.safeTransferFrom(msg.sender, address(this), amount);
-        outcome.mint(address(this), outcome.ON_TIME(), amount);
-        outcome.mint(address(this), outcome.DELAYED(), amount);
+        outcome.mint(address(this), onTimeId, amount);
+        outcome.mint(address(this), delayedId, amount);
+
+        if (totalShares == 0) {
+            sharesMinted = amount;
+        } else {
+            uint256 poolWeight = reserveOnTime > reserveDelayed ? reserveOnTime : reserveDelayed;
+            sharesMinted = (amount * totalShares) / poolWeight;
+            _returnExcess(onTimeId, amount, reserveOnTime, poolWeight);
+            _returnExcess(delayedId, amount, reserveDelayed, poolWeight);
+        }
+        if (sharesMinted == 0) revert InsufficientLiquidity();
 
         lpCollateral += amount;
         totalShares += sharesMinted;
         shares[msg.sender] += sharesMinted;
+        principal[msg.sender] += amount;
 
         emit LiquidityAdded(msg.sender, amount, sharesMinted);
     }
@@ -126,7 +142,8 @@ contract FlightMarket is IERC1155Receiver, ReentrancyGuard {
         uint256 winningId = _winningId();
 
         if (voided) {
-            amountOut = (amount * lpCollateral) / totalShares;
+            amountOut = (principal[msg.sender] * amount) / shares[msg.sender];
+            principal[msg.sender] -= amountOut;
             lpCollateral -= amountOut;
         } else {
             if (!resolved) revert MarketNotResolved();
@@ -144,7 +161,7 @@ contract FlightMarket is IERC1155Receiver, ReentrancyGuard {
         emit LiquidityRemoved(msg.sender, amount, amountOut);
     }
 
-    function buy(Outcome want, uint256 collateralIn)
+    function buy(Outcome want, uint256 collateralIn, uint256 minSharesOut)
         external
         nonReentrant
         returns (uint256 sharesOut)
@@ -171,6 +188,7 @@ contract FlightMarket is IERC1155Receiver, ReentrancyGuard {
         outcome.transferOut(msg.sender, wantId, dy);
 
         sharesOut = collateralIn + dy;
+        if (sharesOut < minSharesOut) revert SlippageExceeded();
         volume += collateralIn;
         emit Bought(msg.sender, want, collateralIn, sharesOut, probability(Outcome.Delayed));
     }
@@ -233,6 +251,13 @@ contract FlightMarket is IERC1155Receiver, ReentrancyGuard {
             outcome.balanceOf(address(this), outcome.ON_TIME()),
             outcome.balanceOf(address(this), outcome.DELAYED())
         );
+    }
+
+    function _returnExcess(uint256 id, uint256 amount, uint256 reserve, uint256 poolWeight)
+        private
+    {
+        uint256 kept = (amount * reserve) / poolWeight;
+        if (amount > kept) outcome.transferOut(msg.sender, id, amount - kept);
     }
 
     function _computeWinning(int32 delayMinutes) private view returns (Outcome) {

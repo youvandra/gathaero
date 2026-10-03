@@ -5,7 +5,7 @@ import { Test } from "forge-std/Test.sol";
 
 import { FlightOracleConsumer } from "../src/oracle/FlightOracleConsumer.sol";
 import { FlightOracleReceiver } from "../src/oracle/FlightOracleReceiver.sol";
-import { Unauthorized } from "../src/lib/Errors.sol";
+import { Unauthorized, UnknownWorkflow } from "../src/lib/Errors.sol";
 
 contract FlightOracleReceiverTest is Test {
     bytes32 internal constant FLIGHT_ID = keccak256("SQ956-2026-10-01");
@@ -37,5 +37,24 @@ contract FlightOracleReceiverTest is Test {
         vm.prank(stranger);
         vm.expectRevert(Unauthorized.selector);
         receiver.onReport("", report);
+    }
+
+    function _metadata(address owner) internal pure returns (bytes memory) {
+        return abi.encodePacked(bytes32("workflow"), bytes10("gathaero"), owner);
+    }
+
+    function test_WorkflowOwnerEnforcedWhenSet() public {
+        address workflowOwner = address(0xBEEF);
+        receiver.setWorkflowOwner(workflowOwner);
+        bytes memory report = abi.encode(FLIGHT_ID, int32(150), true);
+
+        vm.prank(forwarder);
+        vm.expectRevert(UnknownWorkflow.selector);
+        receiver.onReport(_metadata(stranger), report);
+
+        vm.prank(forwarder);
+        receiver.onReport(_metadata(workflowOwner), report);
+        (, bool finalized) = oracle.resolution(FLIGHT_ID);
+        assertTrue(finalized);
     }
 }

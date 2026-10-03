@@ -17,6 +17,8 @@ import {
     MarketNotResolved,
     NothingToRedeem,
     ResolutionNotFinal,
+    SlippageExceeded,
+    AlreadyFinalized,
     Unauthorized
 } from "../src/lib/Errors.sol";
 
@@ -83,7 +85,7 @@ contract FlightMarketTest is Test {
         market.addLiquidity(1_000 * UNIT);
 
         vm.prank(trader);
-        uint256 sharesOut = market.buy(Outcome.Delayed, 100 * UNIT);
+        uint256 sharesOut = market.buy(Outcome.Delayed, 100 * UNIT, 0);
 
         uint256 expectedDy = (1_000 * UNIT * 100 * UNIT) / (1_000 * UNIT + 100 * UNIT);
         assertEq(sharesOut, 100 * UNIT + expectedDy);
@@ -103,7 +105,7 @@ contract FlightMarketTest is Test {
         vm.prank(lp);
         market.addLiquidity(1_000 * UNIT);
         vm.prank(trader);
-        uint256 sharesOut = market.buy(Outcome.Delayed, 100 * UNIT);
+        uint256 sharesOut = market.buy(Outcome.Delayed, 100 * UNIT, 0);
 
         feeder.feed(flightId, 150, true);
         market.resolve();
@@ -120,7 +122,7 @@ contract FlightMarketTest is Test {
         vm.prank(lp);
         market.addLiquidity(1_000 * UNIT);
         vm.prank(trader);
-        market.buy(Outcome.Delayed, 100 * UNIT);
+        market.buy(Outcome.Delayed, 100 * UNIT, 0);
 
         feeder.feed(flightId, 30, true);
         market.resolve();
@@ -135,7 +137,7 @@ contract FlightMarketTest is Test {
         vm.prank(lp);
         uint256 minted = market.addLiquidity(1_000 * UNIT);
         vm.prank(trader);
-        market.buy(Outcome.Delayed, 100 * UNIT);
+        market.buy(Outcome.Delayed, 100 * UNIT, 0);
 
         feeder.feed(flightId, 150, true);
         market.resolve();
@@ -155,7 +157,7 @@ contract FlightMarketTest is Test {
 
         vm.prank(trader);
         vm.expectRevert(MarketAlreadyResolved.selector);
-        market.buy(Outcome.Delayed, 100 * UNIT);
+        market.buy(Outcome.Delayed, 100 * UNIT, 0);
     }
 
     function test_RemoveLiquidityBeforeResolutionReverts() public {
@@ -182,11 +184,84 @@ contract FlightMarketTest is Test {
 
         vm.prank(trader);
         vm.expectRevert(MarketClosed.selector);
-        market.buy(Outcome.Delayed, 10 * UNIT);
+        market.buy(Outcome.Delayed, 10 * UNIT, 0);
 
         vm.prank(lp);
         vm.expectRevert(MarketClosed.selector);
         market.addLiquidity(10 * UNIT);
+    }
+
+    function _lateLp() internal returns (address lateLp, uint256 lateShares) {
+        vm.prank(lp);
+        market.addLiquidity(1_000 * UNIT);
+        vm.prank(trader);
+        market.buy(Outcome.OnTime, 2_000 * UNIT, 0);
+
+        lateLp = address(0xD00D);
+        usdc.mint(lateLp, 1_000 * UNIT);
+        vm.startPrank(lateLp);
+        usdc.approve(address(market), type(uint256).max);
+        lateShares = market.addLiquidity(1_000 * UNIT);
+        vm.stopPrank();
+    }
+
+    function test_LateLiquidityKeepsPrice() public {
+        vm.prank(lp);
+        market.addLiquidity(1_000 * UNIT);
+        vm.prank(trader);
+        market.buy(Outcome.OnTime, 2_000 * UNIT, 0);
+        uint256 before = market.probability(Outcome.Delayed);
+
+        address lateLp = address(0xD00D);
+        usdc.mint(lateLp, 1_000 * UNIT);
+        vm.startPrank(lateLp);
+        usdc.approve(address(market), type(uint256).max);
+        market.addLiquidity(1_000 * UNIT);
+        vm.stopPrank();
+
+        assertApproxEqAbs(market.probability(Outcome.Delayed), before, 1e9);
+        assertGt(market.outcome().balanceOf(lateLp, market.outcome().ON_TIME()), 0);
+    }
+
+    function test_LateLiquidityRecoversDepositWhenPriceUnchanged() public {
+        (address lateLp, uint256 lateShares) = _lateLp();
+
+        feeder.feed(flightId, 0, true);
+        market.resolve();
+
+        vm.startPrank(lateLp);
+        uint256 out = market.removeLiquidity(lateShares) + market.redeem();
+        vm.stopPrank();
+        assertApproxEqAbs(out, 1_000 * UNIT, 2);
+    }
+
+    function test_VoidReturnsLateLiquidityPrincipal() public {
+        (address lateLp, uint256 lateShares) = _lateLp();
+
+        market.resolveVoid();
+
+        vm.prank(lateLp);
+        assertEq(market.removeLiquidity(lateShares), 1_000 * UNIT);
+        vm.prank(lp);
+        assertEq(market.removeLiquidity(1_000 * UNIT), 1_000 * UNIT);
+        vm.prank(trader);
+        assertEq(market.refund(), 2_000 * UNIT);
+        assertEq(usdc.balanceOf(address(market)), 0);
+    }
+
+    function test_BuyRevertsBelowMinShares() public {
+        vm.prank(lp);
+        market.addLiquidity(1_000 * UNIT);
+
+        vm.prank(trader);
+        vm.expectRevert(SlippageExceeded.selector);
+        market.buy(Outcome.Delayed, 100 * UNIT, 1_000 * UNIT);
+    }
+
+    function test_FinalizedResolutionIsLocked() public {
+        feeder.feed(flightId, 150, true);
+        vm.expectRevert(AlreadyFinalized.selector);
+        feeder.feed(flightId, 0, true);
     }
 
     function test_OnlyOwnerCanFeed() public {
@@ -199,8 +274,8 @@ contract FlightMarketTest is Test {
         vm.prank(lp);
         market.addLiquidity(1_000 * UNIT);
         vm.startPrank(trader);
-        market.buy(Outcome.Delayed, 100 * UNIT);
-        market.buy(Outcome.OnTime, 40 * UNIT);
+        market.buy(Outcome.Delayed, 100 * UNIT, 0);
+        market.buy(Outcome.OnTime, 40 * UNIT, 0);
         vm.stopPrank();
 
         assertEq(market.volume(), 140 * UNIT);
@@ -236,7 +311,7 @@ contract FlightMarketTest is Test {
         vm.prank(lp);
         uint256 lpShares = market.addLiquidity(1_000 * UNIT);
         vm.prank(trader);
-        market.buy(Outcome.Delayed, 100 * UNIT);
+        market.buy(Outcome.Delayed, 100 * UNIT, 0);
 
         market.resolveVoid();
         assertTrue(market.voided());

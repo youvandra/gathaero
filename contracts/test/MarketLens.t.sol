@@ -50,7 +50,7 @@ contract MarketLensTest is Test {
         usdg.mint(trader, 1_000 * UNIT);
         vm.startPrank(trader);
         usdg.approve(address(protection), type(uint256).max);
-        protection.buy(Outcome.Delayed, 50 * UNIT);
+        protection.buy(Outcome.Delayed, 50 * UNIT, 0);
         vm.stopPrank();
     }
 
@@ -83,6 +83,8 @@ contract MarketLensTest is Test {
         PositionView[] memory lpPositions = lens.positionsOf(address(this));
         assertEq(lpPositions.length, 2);
         assertEq(lpPositions[0].lpShares, 1_000 * UNIT);
+        assertGt(lpPositions[0].lpValue, 0);
+        assertLe(lpPositions[0].lpValue, 1_050 * UNIT);
     }
 
     function test_PositionsOfEmptyForStranger() public view {

@@ -7,7 +7,7 @@ import { IFlightOracle } from "../interfaces/IFlightOracle.sol";
 import { IFlightRegistry } from "../interfaces/IFlightRegistry.sol";
 import { FlightMarket } from "./FlightMarket.sol";
 import { Flight, MarketKind } from "../types/FlightTypes.sol";
-import { MarketExists, ZeroAddress } from "../lib/Errors.sol";
+import { InvalidRange, MarketExists, ZeroAddress } from "../lib/Errors.sol";
 
 contract MarketFactory is Ownable {
     address public immutable collateral;
@@ -104,7 +104,7 @@ contract MarketFactory is Ownable {
         onlyOwner
         returns (address market)
     {
-        require(upper > lower, "Invalid range");
+        if (upper <= lower) revert InvalidRange();
         bytes32 key = rangeKey(flightId, lower, upper);
         if (_ranges[key] != address(0)) revert MarketExists();
 

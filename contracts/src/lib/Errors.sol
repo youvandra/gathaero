@@ -14,3 +14,7 @@ error InsufficientLiquidity();
 error InsufficientShares();
 error NothingToRedeem();
 error MarketClosed();
+error SlippageExceeded();
+error AlreadyFinalized();
+error InvalidRange();
+error UnknownWorkflow();

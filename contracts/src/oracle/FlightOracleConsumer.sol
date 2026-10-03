@@ -5,7 +5,7 @@ import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
 import { IFlightOracle } from "../interfaces/IFlightOracle.sol";
 import { Resolution } from "../types/FlightTypes.sol";
-import { Unauthorized, ZeroAddress } from "../lib/Errors.sol";
+import { AlreadyFinalized, Unauthorized, ZeroAddress } from "../lib/Errors.sol";
 
 contract FlightOracleConsumer is IFlightOracle, Ownable {
     mapping(address => bool) public reporters;
@@ -28,6 +28,7 @@ contract FlightOracleConsumer is IFlightOracle, Ownable {
 
     function postResolution(bytes32 flightId, int32 delayMinutes, bool finalized) external {
         if (!reporters[msg.sender]) revert Unauthorized();
+        if (_resolutions[flightId].finalized) revert AlreadyFinalized();
         _resolutions[flightId] = Resolution(delayMinutes, finalized);
         emit ResolutionPosted(flightId, delayMinutes, finalized);
     }
