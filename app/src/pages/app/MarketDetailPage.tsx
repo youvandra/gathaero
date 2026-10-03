@@ -34,7 +34,15 @@ type Tab = "protection" | "prediction";
 
 function CardTitle({ children }: { children: string }) {
   return (
-    <h2 style={{ margin: 0, fontSize: "var(--cordon-size-title)", fontWeight: 600 }}>{children}</h2>
+    <h2
+      style={{
+        margin: 0,
+        fontSize: "var(--cordon-size-title)",
+        fontWeight: 600,
+      }}
+    >
+      {children}
+    </h2>
   );
 }
 
@@ -42,7 +50,12 @@ function Row({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="flex items-center justify-between py-1.5 text-sm">
       <span style={{ color: "var(--cordon-copy)" }}>{label}</span>
-      <strong style={{ color: "var(--cordon-ink)", fontVariantNumeric: "tabular-nums" }}>
+      <strong
+        style={{
+          color: "var(--cordon-ink)",
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
         {value}
       </strong>
     </div>
@@ -53,7 +66,10 @@ function Notice({ title, tone, children }: { title: string; tone: string; childr
   return (
     <div
       className="flex flex-col gap-3 rounded-[var(--cordon-radius-3)] border p-4"
-      style={{ borderColor: "var(--cordon-hairline)", background: "var(--cordon-paper-raised)" }}
+      style={{
+        borderColor: "var(--cordon-hairline)",
+        background: "var(--cordon-paper-raised)",
+      }}
     >
       <span style={{ color: tone, fontWeight: 600 }}>{title}</span>
       {children}
@@ -61,7 +77,10 @@ function Notice({ title, tone, children }: { title: string; tone: string; childr
   );
 }
 
-const caption = { color: "var(--cordon-copy)", fontSize: "var(--cordon-size-caption)" } as const;
+const caption = {
+  color: "var(--cordon-copy)",
+  fontSize: "var(--cordon-size-caption)",
+} as const;
 
 function outcomeLine(market: FlightMarket): string {
   if (market.delayMinutes === null) return "";
@@ -102,8 +121,10 @@ function MarketDetail({ market }: { market: FlightMarket }) {
   const [passOpen, setPassOpen] = useState(false);
   const [checking, setChecking] = useState(false);
 
-  const { isPassenger, gated } = usePassenger(market.id);
-  const verified = isPassenger || !gated;
+  const { isPassenger, gated, isLoading: passLoading } = usePassenger(market.id);
+  // Trading on an open flight is for its passengers. The check lives on-chain per wallet,
+  // so a verified wallet goes straight to the market on every visit.
+  const needsPass = market.status === "open" && gated && !isPassenger;
 
   const protection = market.protection;
   const { data: trades = [] } = useTrades(protection ? [protection.address] : []);
@@ -150,7 +171,11 @@ function MarketDetail({ market }: { market: FlightMarket }) {
       }
       const check = checkPassForMarket(pass, market);
       if (!check.ok) {
-        notify({ tone: "caution", title: "Boarding pass doesn't match", children: check.reason });
+        notify({
+          tone: "caution",
+          title: "Boarding pass doesn't match",
+          children: check.reason,
+        });
         return;
       }
       if (!address) return;
@@ -192,7 +217,11 @@ function MarketDetail({ market }: { market: FlightMarket }) {
     if (!protection) return;
     try {
       await refund(protection.address);
-      notify({ tone: "positive", title: "Refund claimed", children: `${market.code} · unwound` });
+      notify({
+        tone: "positive",
+        title: "Refund claimed",
+        children: `${market.code} · unwound`,
+      });
     } catch (error) {
       notify(errorToast(error));
     }
@@ -244,40 +273,205 @@ function MarketDetail({ market }: { market: FlightMarket }) {
         </Notice>
       );
     }
-    if (!verified) {
-      return (
-        <Notice title="Verify your boarding pass" tone="var(--cordon-ink)">
-          <span style={caption}>
-            Protection is a hedge, so you must be a passenger on this flight — insurable interest.
-            Verify to unlock buying.
-          </span>
-          <Button variant="secondary" block loading={checking} onClick={() => setPassOpen(true)}>
-            Verify boarding pass
-          </Button>
-        </Notice>
-      );
-    }
     return (
       <>
         <div className="flex items-center justify-between">
-          <span style={{ color: "var(--cordon-copy-dim)", fontSize: "var(--cordon-size-caption)" }}>
+          <span
+            style={{
+              color: "var(--cordon-copy-dim)",
+              fontSize: "var(--cordon-size-caption)",
+            }}
+          >
             Passenger
           </span>
           <Tag tone="positive" dot>
             Verified
           </Tag>
         </div>
-        <Button
-          variant="primary"
-          block
-          disabled={!isConnected || !protection}
-          onClick={() => setBuyOpen(true)}
-        >
-          {isConnected ? "Buy protection" : "Connect wallet to buy"}
+        <Button variant="primary" block disabled={!protection} onClick={() => setBuyOpen(true)}>
+          Buy protection
         </Button>
       </>
     );
   })();
+
+  const passGate = (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <CardTitle>{`${market.code} · ${market.route}`}</CardTitle>
+          <Tag tone={STATUS_TONE[market.status]} dot>
+            {market.status}
+          </Tag>
+        </div>
+      </CardHeader>
+      <CardBody>
+        <div className="mx-auto flex max-w-md flex-col items-center gap-5 py-6 text-center">
+          <div className="flex flex-col gap-2">
+            <h3
+              style={{
+                margin: 0,
+                fontSize: "var(--cordon-size-title)",
+                fontWeight: 600,
+              }}
+            >
+              Verify your boarding pass to trade
+            </h3>
+            <p style={{ margin: 0, color: "var(--cordon-copy)" }}>
+              Protection and predictions on {market.code} are open to passengers of this flight.
+              Verify once and this wallet stays verified, on-chain.
+            </p>
+          </div>
+          <ol className="flex w-full flex-col gap-2 text-left" style={{ margin: 0, padding: 0 }}>
+            {[
+              "Scan the barcode with your camera, or upload a photo of it.",
+              `We match it to ${market.code} · ${market.route} · ${market.date}.`,
+              "Confirm one transaction that links the pass to your wallet.",
+            ].map((step, index) => (
+              <li
+                key={step}
+                className="flex gap-3 rounded-[var(--cordon-radius-3)] border p-3"
+                style={{
+                  listStyle: "none",
+                  borderColor: "var(--cordon-hairline)",
+                  background: "var(--cordon-paper-raised)",
+                  color: "var(--cordon-copy)",
+                  fontSize: "var(--cordon-size-caption)",
+                }}
+              >
+                <strong style={{ color: "var(--cordon-ink)" }}>{index + 1}</strong>
+                {step}
+              </li>
+            ))}
+          </ol>
+          <Button variant="primary" block loading={checking} onClick={() => setPassOpen(true)}>
+            {checking ? "Verifying…" : "Scan boarding pass"}
+          </Button>
+          <span style={caption}>
+            Each boarding pass links to one wallet. Only a hash of your booking is stored.
+          </span>
+        </div>
+      </CardBody>
+    </Card>
+  );
+
+  const tradeCard = (
+    <Card>
+      <CardHeader>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <CardTitle>{`${market.code} · ${market.route}`}</CardTitle>
+            <Tag tone={STATUS_TONE[market.status]} dot>
+              {market.status}
+            </Tag>
+          </div>
+          <Segmented
+            value={tab}
+            onValueChange={(value) => setTab(value as Tab)}
+            options={[
+              { value: "protection", label: "Protection" },
+              { value: "prediction", label: "Predictions" },
+            ]}
+          />
+        </div>
+      </CardHeader>
+
+      <CardBody>
+        {tab === "protection" ? (
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+            <ProbabilityPanel probability={probability} />
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-2">
+                <Row label="Premium" value={`${(probability * 100).toFixed(2)} per 100`} />
+                <Row
+                  label="Pays if delayed"
+                  value={probability > 0 ? `${(1 / probability).toFixed(1)}x` : "—"}
+                />
+                <Row label="Delayed means" value={`> ${market.thresholdMinutes} min late`} />
+              </div>
+              {action}
+              <p
+                style={{
+                  margin: 0,
+                  color: "var(--cordon-copy-dim)",
+                  fontSize: "var(--cordon-size-caption)",
+                }}
+              >
+                A hedge, not a bet. It pays when the flight lands more than{" "}
+                {market.thresholdMinutes} minutes late and trading closes at the scheduled arrival.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-5">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <Row label="Scheduled (UTC)" value={market.scheduledArrival} />
+              <Row label="Day" value={market.date} />
+              <Row label="Windows" value={market.buckets.length.toString()} />
+              <Row label="Open interest" value={usd(market.openInterest, 0)} />
+            </div>
+            <BarChart
+              data={market.buckets.map((bucket) => ({
+                label: `${bucket.from}–${bucket.to}`,
+                value: bucket.yes * 100,
+                glaze: "violet" as const,
+              }))}
+              height={170}
+              format={(value) => `${value.toFixed(0)}%`}
+              label="Arrival distribution"
+            />
+            <PredictionBuckets buckets={market.buckets} closed={market.status !== "open"} />
+            <p
+              style={{
+                margin: 0,
+                color: "var(--cordon-copy-dim)",
+                fontSize: "var(--cordon-size-caption)",
+              }}
+            >
+              Each row is a window for the actual touchdown time (UTC). Yes pays 1 USDG if the
+              flight lands inside it.
+            </p>
+          </div>
+        )}
+      </CardBody>
+    </Card>
+  );
+
+  const insights = (
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+      <Card>
+        <CardHeader>
+          <CardTitle>Delay probability · by trade</CardTitle>
+        </CardHeader>
+        <div className="px-5 pb-5">
+          <LineChart
+            series={[{ id: "prob", values: history, glaze: "ember" }]}
+            height={180}
+            format={(value) => `${(value * 100).toFixed(1)}%`}
+            label="Delay probability"
+          />
+        </div>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Details</CardTitle>
+        </CardHeader>
+        <CardBody>
+          <Row
+            label="Scheduled arrival"
+            value={`${market.date} · ${market.scheduledArrival} UTC`}
+          />
+          <Row label="Delay threshold" value={`> ${market.thresholdMinutes} min`} />
+          <Row label="Volume" value={usd(market.volume)} />
+          <Row label="Locked" value={usd(market.openInterest)} />
+          <Row
+            label="Oracle"
+            value={market.delayMinutes === null ? "pending" : outcomeLine(market)}
+          />
+        </CardBody>
+      </Card>
+    </div>
+  );
 
   return (
     <>
@@ -290,125 +484,30 @@ function MarketDetail({ market }: { market: FlightMarket }) {
           aria-label="Back to markets"
           onClick={() => navigate("/app/market")}
         />
-        <span style={{ color: "var(--cordon-copy-dim)", fontSize: "var(--cordon-size-caption)" }}>
+        <span
+          style={{
+            color: "var(--cordon-copy-dim)",
+            fontSize: "var(--cordon-size-caption)",
+          }}
+        >
           Markets
         </span>
       </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <CardTitle>{`${market.code} · ${market.route}`}</CardTitle>
-              <Tag tone={STATUS_TONE[market.status]} dot>
-                {market.status}
-              </Tag>
-            </div>
-            <Segmented
-              value={tab}
-              onValueChange={(value) => setTab(value as Tab)}
-              options={[
-                { value: "protection", label: "Protection" },
-                { value: "prediction", label: "Predictions" },
-              ]}
-            />
-          </div>
-        </CardHeader>
-
-        <CardBody>
-          {tab === "protection" ? (
-            <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-              <ProbabilityPanel probability={probability} />
-              <div className="flex flex-col gap-4">
-                <div className="flex flex-col gap-2">
-                  <Row label="Premium" value={`${(probability * 100).toFixed(2)} per 100`} />
-                  <Row
-                    label="Pays if delayed"
-                    value={probability > 0 ? `${(1 / probability).toFixed(1)}x` : "—"}
-                  />
-                  <Row label="Delayed means" value={`> ${market.thresholdMinutes} min late`} />
-                </div>
-                {action}
-                <p
-                  style={{
-                    margin: 0,
-                    color: "var(--cordon-copy-dim)",
-                    fontSize: "var(--cordon-size-caption)",
-                  }}
-                >
-                  A hedge, not a bet. It pays when the flight lands more than{" "}
-                  {market.thresholdMinutes} minutes late and trading closes at the scheduled
-                  arrival.
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-5">
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <Row label="Scheduled (UTC)" value={market.scheduledArrival} />
-                <Row label="Day" value={market.date} />
-                <Row label="Windows" value={market.buckets.length.toString()} />
-                <Row label="Open interest" value={usd(market.openInterest, 0)} />
-              </div>
-              <BarChart
-                data={market.buckets.map((bucket) => ({
-                  label: `${bucket.from}–${bucket.to}`,
-                  value: bucket.yes * 100,
-                  glaze: "violet" as const,
-                }))}
-                height={170}
-                format={(value) => `${value.toFixed(0)}%`}
-                label="Arrival distribution"
-              />
-              <PredictionBuckets buckets={market.buckets} closed={market.status !== "open"} />
-              <p
-                style={{
-                  margin: 0,
-                  color: "var(--cordon-copy-dim)",
-                  fontSize: "var(--cordon-size-caption)",
-                }}
-              >
-                Each row is a window for the actual touchdown time (UTC). Yes pays 1 USDG if the
-                flight lands inside it.
-              </p>
-            </div>
-          )}
-        </CardBody>
-      </Card>
-
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+      {passLoading && market.status === "open" ? (
         <Card>
-          <CardHeader>
-            <CardTitle>Delay probability · by trade</CardTitle>
-          </CardHeader>
-          <div className="px-5 pb-5">
-            <LineChart
-              series={[{ id: "prob", values: history, glaze: "ember" }]}
-              height={180}
-              format={(value) => `${(value * 100).toFixed(1)}%`}
-              label="Delay probability"
-            />
-          </div>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Details</CardTitle>
-          </CardHeader>
           <CardBody>
-            <Row
-              label="Scheduled arrival"
-              value={`${market.date} · ${market.scheduledArrival} UTC`}
-            />
-            <Row label="Delay threshold" value={`> ${market.thresholdMinutes} min`} />
-            <Row label="Volume" value={usd(market.volume)} />
-            <Row label="Locked" value={usd(market.openInterest)} />
-            <Row
-              label="Oracle"
-              value={market.delayMinutes === null ? "pending" : outcomeLine(market)}
-            />
+            <EmptyState title="Checking your boarding pass…" />
           </CardBody>
         </Card>
-      </div>
+      ) : needsPass ? (
+        passGate
+      ) : (
+        <>
+          {tradeCard}
+          {insights}
+        </>
+      )}
 
       <Modal
         open={buyOpen}

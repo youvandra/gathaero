@@ -17,14 +17,18 @@ export type PassAttestation = {
 export function usePassenger(flightId: Hex) {
   const { address } = useAccount();
   const enabled = env.contracts.passRegistry !== ZERO_ADDRESS && Boolean(address);
-  const { data } = useReadContract({
+  const { data, isPending } = useReadContract({
     address: env.contracts.passRegistry,
     abi: passRegistryAbi,
     functionName: "isPassenger",
     args: address ? [flightId, address] : undefined,
     query: { enabled },
   });
-  return { isPassenger: data === true, gated: env.contracts.passRegistry !== ZERO_ADDRESS };
+  return {
+    isPassenger: data === true,
+    gated: env.contracts.passRegistry !== ZERO_ADDRESS,
+    isLoading: enabled && isPending,
+  };
 }
 
 export async function requestAttestation(

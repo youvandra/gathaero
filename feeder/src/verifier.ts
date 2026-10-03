@@ -1,8 +1,8 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { encodePacked, isAddress, isHex, keccak256, type Address, type Hex } from "viem";
+import { encodePacked, isAddress, isHex, keccak256, zeroAddress, type Address, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 
-import { flightRegistryAbi } from "./abi.js";
+import { flightRegistryAbi, passRegistryAbi } from "./abi.js";
 import { dayOfYearUtc, parseBoardingPass } from "./bcbp.js";
 import { clientsFor } from "./chain.js";
 import { loadConfig } from "./config.js";
@@ -97,6 +97,26 @@ async function sign({ flightId, wallet, barcode }: PassRequest) {
       [flightId, pass.bookingReference.toUpperCase(), pass.passenger.toUpperCase()],
     ),
   );
+  // The registry enforces both rules; checking first gives a clear answer without a failed tx.
+  const [holder, alreadyPassenger] = await Promise.all([
+    publicClient.readContract({
+      address: passRegistry,
+      abi: passRegistryAbi,
+      functionName: "holderOf",
+      args: [passHash],
+    }),
+    publicClient.readContract({
+      address: passRegistry,
+      abi: passRegistryAbi,
+      functionName: "isPassenger",
+      args: [flightId, wallet],
+    }),
+  ]);
+  if (alreadyPassenger) throw new Rejected(409, "This wallet is already verified for this flight.");
+  if (holder !== zeroAddress && holder.toLowerCase() !== wallet.toLowerCase()) {
+    throw new Rejected(409, "This boarding pass is already linked to another wallet.");
+  }
+
   const expiry = BigInt(Math.floor(Date.now() / 1000) + SIGNATURE_TTL_SECONDS);
 
   const signature = await verifier.signTypedData({
