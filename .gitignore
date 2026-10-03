@@ -32,3 +32,6 @@ yarn-debug.log*
 
 # ts
 *.tsbuildinfo
+
+# Pitch material stays local
+docs/pitch/
