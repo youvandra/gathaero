@@ -29,7 +29,11 @@ const ERROR_ABI = Object.values(generated)
 const REVERTS: Record<string, Explained> = {
   MarketClosed: {
     title: "Trading is closed",
-    message: "This flight has reached its scheduled arrival. It will settle once it lands.",
+    message: "This flight has departed, so trading is closed. It settles after landing.",
+  },
+  StakeLimitExceeded: {
+    title: "Limit reached",
+    message: "Each wallet can put up to 200 USDG into one market. Try a smaller amount.",
   },
   MarketAlreadyResolved: {
     title: "Market already settled",

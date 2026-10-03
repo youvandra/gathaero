@@ -5,7 +5,7 @@ import { ZERO_ADDRESS } from "../../config/env";
 export const ON_TIME = 0;
 export const DELAYED = 1;
 
-export type MarketStatus = "open" | "awaiting" | "delayed" | "on time" | "voided";
+export type MarketStatus = "open" | "in flight" | "awaiting" | "delayed" | "on time" | "voided";
 
 export type MarketSnapshot = {
   address: Address;
@@ -31,6 +31,8 @@ export type FlightMarket = {
   code: string;
   route: string;
   date: string;
+  scheduledDeparture: string;
+  departureTimestamp: number;
   scheduledArrival: string;
   arrivalTimestamp: number;
   thresholdMinutes: number;
@@ -61,6 +63,7 @@ export type RawFlight = {
   flightId: `0x${string}`;
   number: string;
   route: string;
+  scheduledDeparture: bigint;
   scheduledArrival: bigint;
   delayThresholdMinutes: number;
   delayMinutes: number;
@@ -108,7 +111,9 @@ function snapshotOf(raw: RawMarket): MarketSnapshot {
 function statusOf(flight: RawFlight, protection: MarketSnapshot | null): MarketStatus {
   if (protection?.voided) return "voided";
   if (protection?.resolved) return protection.delayedWon ? "delayed" : "on time";
-  if (Date.now() / 1000 > Number(flight.scheduledArrival)) return "awaiting";
+  const now = Date.now() / 1000;
+  if (now > Number(flight.scheduledArrival)) return "awaiting";
+  if (now >= Number(flight.scheduledDeparture)) return "in flight";
   return "open";
 }
 
@@ -133,7 +138,9 @@ export function toFlightMarket(flight: RawFlight): FlightMarket {
     id: flight.flightId,
     code: flight.number,
     route: formatRoute(flight.route),
-    date: utcDate(flight.scheduledArrival),
+    date: utcDate(flight.scheduledDeparture),
+    scheduledDeparture: utcTime(flight.scheduledDeparture),
+    departureTimestamp: Number(flight.scheduledDeparture),
     scheduledArrival: utcTime(flight.scheduledArrival),
     arrivalTimestamp: Number(flight.scheduledArrival),
     thresholdMinutes: flight.delayThresholdMinutes,
@@ -148,7 +155,7 @@ export function toFlightMarket(flight: RawFlight): FlightMarket {
 }
 
 export const isLive = (market: FlightMarket): boolean =>
-  market.status === "open" || market.status === "awaiting";
+  market.status === "open" || market.status === "in flight" || market.status === "awaiting";
 
 export function quoteShares(market: MarketSnapshot, outcome: number, amount: bigint): bigint {
   const [want, unwanted] =

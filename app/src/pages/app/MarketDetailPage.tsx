@@ -264,6 +264,16 @@ function MarketDetail({ market }: { market: FlightMarket }) {
         </Notice>
       );
     }
+    if (market.status === "in flight") {
+      return (
+        <Notice title="In the air · trading closed" tone="var(--cordon-ink)">
+          <span style={caption}>
+            Trading closed at departure, while the arrival was still unknown. The market settles
+            after landing.
+          </span>
+        </Notice>
+      );
+    }
     if (market.status === "awaiting") {
       return (
         <Notice title="Landed · awaiting oracle" tone="var(--cordon-ink)">
@@ -398,14 +408,15 @@ function MarketDetail({ market }: { market: FlightMarket }) {
                 }}
               >
                 A hedge, not a bet. It pays when the flight lands more than{" "}
-                {market.thresholdMinutes} minutes late and trading closes at the scheduled arrival.
+                {market.thresholdMinutes} minutes late and trading closes at the scheduled
+                departure.
               </p>
             </div>
           </div>
         ) : (
           <div className="flex flex-col gap-5">
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <Row label="Scheduled (UTC)" value={market.scheduledArrival} />
+              <Row label="Arrives (UTC)" value={market.scheduledArrival} />
               <Row label="Day" value={market.date} />
               <Row label="Windows" value={market.buckets.length.toString()} />
               <Row label="Open interest" value={usd(market.openInterest, 0)} />
@@ -428,8 +439,8 @@ function MarketDetail({ market }: { market: FlightMarket }) {
                 fontSize: "var(--cordon-size-caption)",
               }}
             >
-              Each row is a window for the actual touchdown time (UTC). Yes pays 1 USDG if the
-              flight lands inside it.
+              Each row is a window for the actual arrival time at the gate (UTC). Yes pays 1 USDG if
+              the flight arrives inside it. Trading closes at departure.
             </p>
           </div>
         )}
@@ -458,9 +469,10 @@ function MarketDetail({ market }: { market: FlightMarket }) {
         </CardHeader>
         <CardBody>
           <Row
-            label="Scheduled arrival"
-            value={`${market.date} · ${market.scheduledArrival} UTC`}
+            label="Departs · trading closes"
+            value={`${market.date} · ${market.scheduledDeparture} UTC`}
           />
+          <Row label="Scheduled arrival" value={`${market.scheduledArrival} UTC`} />
           <Row label="Delay threshold" value={`> ${market.thresholdMinutes} min`} />
           <Row label="Volume" value={usd(market.volume)} />
           <Row label="Locked" value={usd(market.openInterest)} />

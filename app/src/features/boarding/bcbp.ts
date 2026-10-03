@@ -62,7 +62,7 @@ export function checkPassForMarket(pass: BoardingPass, market: FlightMarket): Pa
     };
   }
 
-  const gap = Math.abs(pass.dayOfYear - dayOfYearUtc(market.arrivalTimestamp));
+  const gap = Math.abs(pass.dayOfYear - dayOfYearUtc(market.departureTimestamp));
   if (gap > 1 && gap < 364) {
     return { ok: false, reason: `This pass is for a different day than ${market.date}.` };
   }
