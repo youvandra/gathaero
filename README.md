@@ -23,7 +23,7 @@ docs/        Product spec
 ```
 cd contracts && forge build && forge test
 cd app       && npm install && npm run dev && npm run build
-cd feeder    && npm install && npm run start
+cd feeder    && npm install && npm run list && npm run resolve -- --watch
 cd cre       && see README
 ```
 

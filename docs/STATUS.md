@@ -41,9 +41,14 @@ docs/        spec.md (product), STATUS.md (this)
 
 - Collateral: `Deploy.s.sol` uses `COLLATERAL` if set (e.g. Paxos USDG), else deploys mock USDG.
 - Trading (`buy`, `addLiquidity`) closes at `scheduledArrival`; resolution has no time gate.
+- `addLiquidity` is proportional (FPMM style): price never moves, the surplus outcome tokens go back
+  to the LP, and each LP's principal is tracked so a void returns exactly what they put in.
+- `buy(outcome, amount, minSharesOut)` reverts on slippage; the app passes quote − 1%.
+- A finalized resolution can't be overwritten. `FlightOracleReceiver.setWorkflowOwner` limits
+  CRE reports to our workflow (the Chainlink forwarder is shared).
 - `Bought` event carries `delayedProbability` → price history without an indexer.
 
-Tests: `forge test` → **21/21 pass**.
+Tests: `forge test` → **27/27 pass**.
 
 ## App (`app/src`)
 - All dashboard data is on-chain via `MarketLens` (no mocks). Hooks in `features/market/`:
@@ -72,6 +77,11 @@ Verified end-to-end on local anvil: list → faucet → buy protection → resol
 ## Not done yet
 - Deploy to Arbitrum Sepolia (needs funded deployer key) and fill `app/.env`.
 - `RAPIDAPI_KEY` for real schedules/resolution; `flights.json` times are estimates until then.
-- CRE workflow posts `finalized=true` regardless of flight status — should only finalize on `Arrived`.
+- CRE workflow typechecks against cre-sdk 1.23 but has not been simulated; it re-reports landed
+  flights each run (the oracle rejects the duplicate) — add a finalized read before going live.
+- `cordon-ui` is a `file:../../cordon-ui` dependency outside this repo, so a fresh clone or a hosted
+  build can't install it — vendor a packed tarball or build locally and upload `dist/`.
+- `VITE_DEPLOY_BLOCK` must be set on public RPCs, or the trade-history log scan starts at block 0.
+- Landing testimonial (name + pravatar photo) is placeholder copy.
 - Boarding pass check is client-side only (localStorage).
 - No sell/exit before settlement (CPMM has no `sell`).
