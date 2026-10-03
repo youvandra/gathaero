@@ -191,6 +191,19 @@ export const flightMarketAbi = [
   },
   {
     "type": "function",
+    "name": "isTrading",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "kind",
     "inputs": [],
     "outputs": [
@@ -752,6 +765,11 @@ export const flightMarketAbi = [
   {
     "type": "error",
     "name": "MarketAlreadyResolved",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "MarketClosed",
     "inputs": []
   },
   {

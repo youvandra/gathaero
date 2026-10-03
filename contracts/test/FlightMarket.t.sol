@@ -13,6 +13,7 @@ import { Outcome } from "../src/types/FlightTypes.sol";
 import {
     InsufficientShares,
     MarketAlreadyResolved,
+    MarketClosed,
     MarketNotResolved,
     NothingToRedeem,
     ResolutionNotFinal,
@@ -170,6 +171,22 @@ contract FlightMarketTest is Test {
         vm.prank(stranger);
         vm.expectRevert(Unauthorized.selector);
         oracle.postResolution(flightId, 150, true);
+    }
+
+    function test_TradingClosesAtScheduledArrival() public {
+        vm.prank(lp);
+        market.addLiquidity(1_000 * UNIT);
+
+        vm.warp(scheduledArrival);
+        assertFalse(market.isTrading());
+
+        vm.prank(trader);
+        vm.expectRevert(MarketClosed.selector);
+        market.buy(Outcome.Delayed, 10 * UNIT);
+
+        vm.prank(lp);
+        vm.expectRevert(MarketClosed.selector);
+        market.addLiquidity(10 * UNIT);
     }
 
     function test_OnlyOwnerCanFeed() public {

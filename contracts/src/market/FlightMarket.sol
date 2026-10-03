@@ -14,6 +14,7 @@ import {
     InsufficientLiquidity,
     InsufficientShares,
     MarketAlreadyResolved,
+    MarketClosed,
     MarketNotResolved,
     NothingToRedeem,
     ResolutionNotFinal,
@@ -97,8 +98,13 @@ contract FlightMarket is IERC1155Receiver, ReentrancyGuard {
         return !resolved && !voided;
     }
 
+    function isTrading() public view returns (bool) {
+        return isOpen() && block.timestamp < scheduledArrival;
+    }
+
     function addLiquidity(uint256 amount) external nonReentrant returns (uint256 sharesMinted) {
         if (!isOpen()) revert MarketAlreadyResolved();
+        if (block.timestamp >= scheduledArrival) revert MarketClosed();
         if (amount == 0) revert ZeroAmount();
 
         sharesMinted = totalShares == 0 ? amount : (amount * totalShares) / lpCollateral;
@@ -144,6 +150,7 @@ contract FlightMarket is IERC1155Receiver, ReentrancyGuard {
         returns (uint256 sharesOut)
     {
         if (!isOpen()) revert MarketAlreadyResolved();
+        if (block.timestamp >= scheduledArrival) revert MarketClosed();
         if (collateralIn == 0) revert ZeroAmount();
 
         uint256 wantId = _id(want);

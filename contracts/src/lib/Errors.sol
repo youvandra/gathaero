@@ -13,3 +13,4 @@ error ResolutionNotFinal();
 error InsufficientLiquidity();
 error InsufficientShares();
 error NothingToRedeem();
+error MarketClosed();
