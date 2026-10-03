@@ -13,14 +13,18 @@ import type { Column } from "cordon-ui";
 import { useState } from "react";
 import { useAccount } from "wagmi";
 
+import { LoadError } from "../../components/feedback/LoadError";
+import { TableSkeleton } from "../../components/feedback/Skeletons";
 import { StatTile } from "../../features/dashboard/StatTile";
 import { isLive, type FlightMarket } from "../../features/market/model";
 import { useFlights } from "../../features/market/useFlights";
 import { useMarketTrends } from "../../features/market/useMarketTrends";
 import { usePositions } from "../../features/market/usePositions";
-import { useTransact } from "../../features/market/useTransact";
-import { formatUsd, parseAmount, usd } from "../../lib/format";
+import { useCollateralBalance } from "../../features/market/useBalance";
+import { STAGE_LABEL, useTransact } from "../../features/market/useTransact";
+import { formatUsd, formatUsdc, parseAmount, usd } from "../../lib/format";
 import { errorToast } from "../../lib/errors";
+import { usePageTitle } from "../../lib/hooks/usePageTitle";
 
 function CardTitle({ children }: { children: string }) {
   return (
@@ -80,10 +84,12 @@ function buildColumns(onAdd: (row: FlightMarket) => void, canAdd: boolean): Colu
 export function VaultPage() {
   const { notify } = useToast();
   const { isConnected } = useAccount();
-  const { flights } = useFlights();
+  usePageTitle("Vault");
+  const { flights, isLoading, error, refetch } = useFlights();
   const { volumeSeries } = useMarketTrends(flights);
-  const { positions } = usePositions();
-  const { addLiquidity, pending } = useTransact();
+  const { positions, isLoading: positionsLoading } = usePositions();
+  const { addLiquidity, pending, stage } = useTransact();
+  const balance = useCollateralBalance();
 
   const [amount, setAmount] = useState("");
   const [target, setTarget] = useState<FlightMarket | null>(null);
@@ -119,10 +125,14 @@ export function VaultPage() {
   return (
     <>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatTile label="TVL" value={usd(tvl, 0)} delta="protection pools" up />
-        <StatTile label="Premium volume" value={usd(volume, 0)} up />
-        <StatTile label="Your liquidity" value={formatUsd(myLiquidity)} />
-        <StatTile label="Open pools" value={pools.length.toString()} />
+        <StatTile label="TVL" value={usd(tvl, 0)} delta="protection pools" up loading={isLoading} />
+        <StatTile label="Premium volume" value={usd(volume, 0)} up loading={isLoading} />
+        <StatTile
+          label="Your liquidity"
+          value={formatUsd(myLiquidity)}
+          loading={positionsLoading}
+        />
+        <StatTile label="Open pools" value={pools.length.toString()} loading={isLoading} />
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
@@ -157,14 +167,20 @@ export function VaultPage() {
         <CardHeader>
           <CardTitle>Protection pools</CardTitle>
         </CardHeader>
-        <DataTable
-          columns={buildColumns(setTarget, isConnected)}
-          rows={pools}
-          rowKey={(row) => row.id}
-          density="default"
-          stickyHeader={false}
-          empty="No open pools"
-        />
+        {isLoading ? (
+          <TableSkeleton rows={4} columns={5} />
+        ) : error && pools.length === 0 ? (
+          <LoadError what="pools" onRetry={refetch} />
+        ) : (
+          <DataTable
+            columns={buildColumns(setTarget, isConnected)}
+            rows={pools}
+            rowKey={(row) => row.id}
+            density="default"
+            stickyHeader={false}
+            empty="No open pools right now. New flights are listed every day."
+          />
+        )}
       </Card>
 
       <Modal
@@ -178,13 +194,14 @@ export function VaultPage() {
               Cancel
             </Button>
             <Button variant="primary" loading={pending} onClick={confirmAdd}>
-              Confirm
+              {pending ? STAGE_LABEL[stage] : "Confirm"}
             </Button>
           </>
         }
       >
         <div className="flex flex-col gap-3">
           <TextField
+            id="liquidity-amount"
             inputMode="decimal"
             prefix="USDG"
             placeholder="Amount"
@@ -198,7 +215,8 @@ export function VaultPage() {
               fontSize: "var(--cordon-size-caption)",
             }}
           >
-            Withdraw after the flight settles, or in full if it is voided.
+            Balance {balance === undefined ? "…" : formatUsdc(balance)} USDG. Withdraw after the
+            flight settles, or in full if it is voided.
           </p>
         </div>
       </Modal>

@@ -1,11 +1,17 @@
 import { DataTable, Sparkline, Tag } from "cordon-ui";
 import type { Column } from "cordon-ui";
 
+import { LoadError } from "../../components/feedback/LoadError";
+import { TableSkeleton } from "../../components/feedback/Skeletons";
 import type { FlightMarket } from "../market/model";
-import { usd } from "../../lib/format";
+import { formatCountdown, usd } from "../../lib/format";
+import { useNow } from "../../lib/hooks/useNow";
 import { STATUS_TONE } from "./statusTone";
 
-function buildColumns(trendOf?: (row: FlightMarket) => number[]): Column<FlightMarket>[] {
+function buildColumns(
+  now: number,
+  trendOf?: (row: FlightMarket) => number[],
+): Column<FlightMarket>[] {
   const columns: Column<FlightMarket>[] = [
     {
       id: "code",
@@ -21,14 +27,25 @@ function buildColumns(trendOf?: (row: FlightMarket) => number[]): Column<FlightM
       ),
     },
     {
-      id: "date",
-      header: "Date",
-      sortBy: (row) => row.arrivalTimestamp,
-      cell: (row) => row.date,
+      id: "departs",
+      header: "Departs (UTC)",
+      sortBy: (row) => row.departureTimestamp,
+      cell: (row) => (
+        <span className="flex flex-col">
+          <span style={{ fontVariantNumeric: "tabular-nums" }}>
+            {row.date} · {row.scheduledDeparture}
+          </span>
+          {row.status === "open" ? (
+            <span style={{ color: "var(--cordon-copy-dim)", fontSize: "var(--cordon-size-micro)" }}>
+              closes in {formatCountdown(row.departureTimestamp - now)}
+            </span>
+          ) : null}
+        </span>
+      ),
     },
     {
       id: "ata",
-      header: "Arrives (UTC)",
+      header: "Arrives",
       numeric: true,
       sortBy: (row) => row.arrivalTimestamp,
       cell: (row) => row.scheduledArrival,
@@ -81,15 +98,25 @@ export function MarketTable({
   onSelect,
   trendOf,
   empty,
+  loading = false,
+  error = false,
+  onRetry,
 }: {
   rows: FlightMarket[];
   onSelect?: (row: FlightMarket) => void;
   trendOf?: (row: FlightMarket) => number[];
   empty?: string;
+  loading?: boolean;
+  error?: boolean;
+  onRetry?: () => void;
 }) {
+  const now = useNow();
+  if (loading) return <TableSkeleton columns={trendOf ? 7 : 6} />;
+  if (error && rows.length === 0 && onRetry) return <LoadError what="markets" onRetry={onRetry} />;
+
   return (
     <DataTable
-      columns={buildColumns(trendOf)}
+      columns={buildColumns(now, trendOf)}
       rows={rows}
       rowKey={(row) => row.id}
       density="default"

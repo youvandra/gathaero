@@ -8,6 +8,7 @@ import {
   LineChart,
   Modal,
   Segmented,
+  Skeleton,
   Tag,
   TextField,
   useToast,
@@ -15,19 +16,23 @@ import {
 import type { ReactNode } from "react";
 import { useCallback, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useAccount } from "wagmi";
+import { useAccount, useReadContract } from "wagmi";
 
 import { checkPassForMarket, parseBoardingPass } from "../../features/boarding/bcbp";
 import { BoardingPassScanner } from "../../features/boarding/BoardingPassScanner";
 import { STATUS_TONE } from "../../features/dashboard/statusTone";
 import { PredictionBuckets } from "../../features/dashboard/PredictionBuckets";
 import { ProbabilityPanel } from "../../features/dashboard/ProbabilityPanel";
-import { DELAYED, quoteShares, type FlightMarket } from "../../features/market/model";
+import { DELAYED, MAX_STAKE, quoteShares, type FlightMarket } from "../../features/market/model";
 import { probabilitySeries, useTrades } from "../../features/market/useActivity";
 import { requestAttestation, usePassenger } from "../../features/market/useBoardingPass";
 import { pickFlight, useFlights } from "../../features/market/useFlights";
-import { useTransact } from "../../features/market/useTransact";
-import { formatUsdc, parseAmount, usd, withSlippage } from "../../lib/format";
+import { useCollateralBalance } from "../../features/market/useBalance";
+import { STAGE_LABEL, useTransact } from "../../features/market/useTransact";
+import { flightMarketAbi } from "../../lib/abi";
+import { formatCountdown, formatUsdc, parseAmount, usd, withSlippage } from "../../lib/format";
+import { useNow } from "../../lib/hooks/useNow";
+import { usePageTitle } from "../../lib/hooks/usePageTitle";
 import { errorToast } from "../../lib/errors";
 
 type Tab = "protection" | "prediction";
@@ -88,19 +93,72 @@ function outcomeLine(market: FlightMarket): string {
   return `Landed ${market.delayMinutes} min late`;
 }
 
+const QUICK_AMOUNTS = ["10", "25", "50", "100"];
+
+function DetailSkeleton() {
+  return (
+    <Card aria-busy="true" aria-label="Loading market">
+      <CardHeader>
+        <div className="flex items-center justify-between gap-3">
+          <Skeleton width={180} height={20} />
+          <Skeleton width={160} height={30} />
+        </div>
+      </CardHeader>
+      <CardBody>
+        <div className="grid gap-5 lg:grid-cols-2">
+          <div className="flex flex-col gap-4">
+            <div className="flex justify-between">
+              <Skeleton width={110} height={44} />
+              <Skeleton width={110} height={44} />
+            </div>
+            <Skeleton width="100%" height={10} />
+            <Skeleton variant="text" lines={2} />
+          </div>
+          <div className="flex flex-col gap-3">
+            <Skeleton variant="text" lines={3} />
+            <Skeleton width="100%" height={44} />
+          </div>
+        </div>
+      </CardBody>
+    </Card>
+  );
+}
+
 export function MarketDetailPage() {
+  const navigate = useNavigate();
   const { code = "" } = useParams<{ code: string }>();
-  const { flights, isLoading } = useFlights();
+  const { flights, isLoading, error, refetch } = useFlights();
   const market = pickFlight(flights, code);
+  usePageTitle(code.toUpperCase());
 
   if (!market) {
+    if (isLoading) return <DetailSkeleton />;
     return (
       <Card>
         <CardBody>
-          <EmptyState
-            title={isLoading ? "Loading market…" : `No market for ${code.toUpperCase()}`}
-            description={isLoading ? undefined : "Only listed flights can be traded."}
-          />
+          {error ? (
+            <EmptyState
+              icon="warning"
+              title="Couldn't load this market"
+              description="The network didn't answer. Check your connection, then try again."
+              action={
+                <Button variant="secondary" size="sm" iconStart="refresh" onClick={refetch}>
+                  Try again
+                </Button>
+              }
+            />
+          ) : (
+            <EmptyState
+              icon="search"
+              title={`No market for ${code.toUpperCase()}`}
+              description="Only listed flights can be traded. Check the flight number or pick one from the list."
+              action={
+                <Button variant="secondary" size="sm" onClick={() => navigate("/app/market")}>
+                  Browse markets
+                </Button>
+              }
+            />
+          )}
         </CardBody>
       </Card>
     );
@@ -113,7 +171,9 @@ function MarketDetail({ market }: { market: FlightMarket }) {
   const navigate = useNavigate();
   const { notify } = useToast();
   const { isConnected, address } = useAccount();
-  const { buy, refund, registerPass, pending } = useTransact();
+  const { buy, refund, registerPass, pending, stage } = useTransact();
+  const balance = useCollateralBalance();
+  const now = useNow();
 
   const [tab, setTab] = useState<Tab>("protection");
   const [buyOpen, setBuyOpen] = useState(false);
@@ -138,6 +198,23 @@ function MarketDetail({ market }: { market: FlightMarket }) {
   const parsedAmount = parseAmount(amount);
   const payout = protection ? quoteShares(protection, DELAYED, parsedAmount) : 0n;
 
+  const { data: staked = 0n } = useReadContract({
+    address: protection?.address,
+    abi: flightMarketAbi,
+    functionName: "staked",
+    args: address ? [address] : undefined,
+    query: { enabled: Boolean(protection && address && buyOpen) },
+  });
+  const room = MAX_STAKE > staked ? MAX_STAKE - staked : 0n;
+  const amountIssue =
+    parsedAmount <= 0n
+      ? "Enter an amount."
+      : parsedAmount > room
+        ? `You can add up to ${formatUsdc(room)} USDG more on this flight (200 USDG per market).`
+        : balance !== undefined && parsedAmount > balance
+          ? "Not enough USDG. Tap your balance at the top to get test USDG."
+          : null;
+
   const confirmBuy = async () => {
     if (!protection) return;
     if (parsedAmount <= 0n) {
@@ -150,6 +227,11 @@ function MarketDetail({ market }: { market: FlightMarket }) {
         tone: "positive",
         title: "Protection bought",
         children: `${amount} USDG on ${market.code} · pays ${formatUsdc(payout)} if delayed`,
+        action: (
+          <Button variant="ghost" size="sm" onClick={() => navigate("/app/positions")}>
+            View
+          </Button>
+        ),
       });
       setBuyOpen(false);
     } catch (error) {
@@ -355,7 +437,7 @@ function MarketDetail({ market }: { market: FlightMarket }) {
             ))}
           </ol>
           <Button variant="primary" block loading={checking} onClick={() => setPassOpen(true)}>
-            {checking ? "Verifying…" : "Scan boarding pass"}
+            {checking ? (pending ? STAGE_LABEL[stage] : "Checking your pass…") : "Scan boarding pass"}
           </Button>
           <span style={caption}>
             Each boarding pass links to one wallet. Only a hash of your booking is stored.
@@ -392,6 +474,12 @@ function MarketDetail({ market }: { market: FlightMarket }) {
             <ProbabilityPanel probability={probability} />
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-2">
+                {market.status === "open" ? (
+                  <Row
+                    label="Trading closes in"
+                    value={formatCountdown(market.departureTimestamp - now)}
+                  />
+                ) : null}
                 <Row label="Premium" value={`${(probability * 100).toFixed(2)} per 100`} />
                 <Row
                   label="Pays if delayed"
@@ -531,19 +619,45 @@ function MarketDetail({ market }: { market: FlightMarket }) {
             <Button variant="ghost" onClick={() => setBuyOpen(false)}>
               Cancel
             </Button>
-            <Button variant="primary" loading={pending} onClick={confirmBuy}>
-              Confirm
+            <Button
+              variant="primary"
+              loading={pending}
+              disabled={!pending && amountIssue !== null}
+              onClick={confirmBuy}
+            >
+              {pending ? STAGE_LABEL[stage] : "Confirm"}
             </Button>
           </>
         }
       >
         <div className="flex flex-col gap-3">
           <TextField
+            id="buy-amount"
             inputMode="decimal"
             prefix="USDG"
             value={amount}
             onChange={(event) => setAmount(event.target.value)}
           />
+          <div className="flex flex-wrap items-center gap-2">
+            {QUICK_AMOUNTS.map((quick) => (
+              <Button
+                key={quick}
+                variant={amount === quick ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => setAmount(quick)}
+              >
+                {quick}
+              </Button>
+            ))}
+            <span className="ml-auto" style={caption}>
+              Balance {balance === undefined ? "…" : formatUsdc(balance)} USDG
+            </span>
+          </div>
+          {amountIssue && parsedAmount > 0n ? (
+            <span role="alert" style={{ ...caption, color: "var(--cordon-critical)" }}>
+              {amountIssue}
+            </span>
+          ) : null}
           <Row label="You pay" value={`${formatUsdc(parsedAmount)} USDG`} />
           <Row label="Pays if delayed" value={`${formatUsdc(payout)} USDG`} />
           <Row label="Implied delay" value={`${(probability * 100).toFixed(1)}%`} />

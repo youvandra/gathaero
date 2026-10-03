@@ -10,6 +10,16 @@ import { AppError } from "../../lib/errors";
 
 export const FAUCET_AMOUNT = 1_000_000_000n;
 
+/** Where a transaction is, so buttons can say what the wallet is waiting for. */
+export type TxStage = "idle" | "approve" | "confirm" | "mining";
+
+export const STAGE_LABEL: Record<TxStage, string> = {
+  idle: "",
+  approve: "Approve USDG in wallet…",
+  confirm: "Confirm in wallet…",
+  mining: "Confirming on Arbitrum…",
+};
+
 export function useTransact() {
   const queryClient = useQueryClient();
   const publicClient = usePublicClient({ chainId: targetChain.id });
@@ -17,9 +27,11 @@ export function useTransact() {
   const { switchChainAsync } = useSwitchChain();
   const { writeContractAsync } = useWriteContract();
   const [pending, setPending] = useState(false);
+  const [stage, setStage] = useState<TxStage>("idle");
 
   const settle = async (hash: Hash) => {
     if (!publicClient) throw new Error("No RPC client");
+    setStage("mining");
     const receipt = await publicClient.waitForTransactionReceipt({ hash });
     if (receipt.status !== "success") {
       throw new AppError("Transaction failed", "It was mined but reverted. Refresh and try again.");
@@ -58,6 +70,7 @@ export function useTransact() {
       args: [address, spender],
     });
     if (allowance >= amount) return;
+    setStage("approve");
     await settle(
       await writeContractAsync({
         address: env.contracts.collateral,
@@ -71,24 +84,31 @@ export function useTransact() {
   const run = async (steps: () => Promise<Hash>) => {
     if (!address) throw new AppError("Wallet not connected", "Connect a wallet first.");
     setPending(true);
+    setStage("confirm");
     try {
       await ensureChain();
       await settle(await steps());
       await queryClient.invalidateQueries();
     } finally {
       setPending(false);
+      setStage("idle");
     }
   };
 
   const write = (market: Address, functionName: "redeem" | "refund") =>
     run(() => writeContractAsync({ address: market, abi: flightMarketAbi, functionName }));
 
+  // The final write always asks the wallet again, even after an approval.
+  const confirmStep = () => setStage("confirm");
+
   return {
     pending,
+    stage,
     buy: (market: Address, outcome: number, amount: bigint, minShares: bigint) =>
       run(async () => {
         await ensureBalance(amount);
         await ensureAllowance(market, amount);
+        confirmStep();
         return writeContractAsync({
           address: market,
           abi: flightMarketAbi,
@@ -100,6 +120,7 @@ export function useTransact() {
       run(async () => {
         await ensureBalance(amount);
         await ensureAllowance(market, amount);
+        confirmStep();
         return writeContractAsync({
           address: market,
           abi: flightMarketAbi,

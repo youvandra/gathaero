@@ -165,3 +165,6 @@ export function quoteShares(market: MarketSnapshot, outcome: number, amount: big
   if (amount <= 0n || want === 0n) return 0n;
   return amount + (want * amount) / (unwanted + amount);
 }
+
+/** Most one wallet can put into one market, in 6-decimal USDG. Mirrors FlightMarket.MAX_STAKE. */
+export const MAX_STAKE = 200_000_000n;

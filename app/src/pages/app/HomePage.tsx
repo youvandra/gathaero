@@ -1,6 +1,7 @@
 import { Button, Card, CardHeader, LineChart, Sparkline } from "cordon-ui";
 import { useNavigate } from "react-router-dom";
 
+import { ListSkeleton } from "../../components/feedback/Skeletons";
 import { HeroSearch } from "../../features/dashboard/HeroSearch";
 import { MarketTable } from "../../features/dashboard/MarketTable";
 import { StatTile } from "../../features/dashboard/StatTile";
@@ -9,6 +10,7 @@ import { useFlights } from "../../features/market/useFlights";
 import { useMarketTrends } from "../../features/market/useMarketTrends";
 import { formatNumber, formatUsd, usd } from "../../lib/format";
 import { usePortfolio } from "../../features/market/usePortfolio";
+import { usePageTitle } from "../../lib/hooks/usePageTitle";
 
 function CardTitle({ children }: { children: string }) {
   return (
@@ -20,7 +22,8 @@ export function HomePage() {
   const navigate = useNavigate();
   const openDetail = (code: string) => navigate(`/app/market/${code}`);
 
-  const { flights } = useFlights();
+  usePageTitle("Home");
+  const { flights, isLoading, error, refetch } = useFlights();
   const { trades, trendOf, volumeSeries } = useMarketTrends(flights);
 
   const live = flights.filter(isLive);
@@ -74,7 +77,7 @@ export function HomePage() {
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {stats.map((stat) => (
-          <StatTile key={stat.label} {...stat} />
+          <StatTile key={stat.label} {...stat} loading={portfolio.isLoading} />
         ))}
       </div>
 
@@ -96,6 +99,10 @@ export function HomePage() {
           <MarketTable
             rows={live}
             trendOf={trendOf}
+            loading={isLoading}
+            error={Boolean(error)}
+            onRetry={refetch}
+            empty="No flights open right now. New flights are listed every day."
             onSelect={(market) => openDetail(market.code)}
           />
         </Card>
@@ -111,7 +118,9 @@ export function HomePage() {
                   fontSize: "var(--cordon-size-caption)",
                 }}
               >
-                {`${live.length} live · ${(avgDelay * 100).toFixed(1)}% avg delay odds · ${usd(openInterest, 0)} locked · ${usd(volume, 0)} volume · ${formatNumber(trades.length)} trades`}
+                {isLoading
+                  ? "Loading platform numbers…"
+                  : `${live.length} live · ${(avgDelay * 100).toFixed(1)}% avg delay odds · ${usd(openInterest, 0)} locked · ${usd(volume, 0)} volume · ${formatNumber(trades.length)} trades`}
               </p>
             </CardHeader>
             <div className="px-5 pb-5">
@@ -128,6 +137,19 @@ export function HomePage() {
             <CardHeader>
               <CardTitle>Top movers</CardTitle>
             </CardHeader>
+            {isLoading ? <ListSkeleton /> : null}
+            {!isLoading && movers.length === 0 ? (
+              <p
+                className="px-5 pb-5"
+                style={{
+                  margin: 0,
+                  color: "var(--cordon-copy-dim)",
+                  fontSize: "var(--cordon-size-caption)",
+                }}
+              >
+                Odds start moving once people trade.
+              </p>
+            ) : null}
             {movers.map((market) => (
               <button
                 key={market.id}

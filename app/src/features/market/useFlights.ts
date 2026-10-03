@@ -23,6 +23,7 @@ export function useFlights() {
     flights: query.data ?? [],
     isLoading: isConfigured && query.isLoading,
     error: query.error,
+    refetch: () => void query.refetch(),
   };
 }
 

@@ -52,3 +52,12 @@ export function withSlippage(shares: bigint, bps = 100n): bigint {
 export function shortenAddress(address: string, size = 4): string {
   return `${address.slice(0, 2 + size)}…${address.slice(-size)}`;
 }
+
+/** "2h 14m", "38m" or "under 1m" until a unix timestamp. */
+export function formatCountdown(seconds: number): string {
+  if (seconds < 60) return "under 1m";
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  if (hours >= 24) return `${Math.floor(hours / 24)}d ${hours % 24}h`;
+  return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+}

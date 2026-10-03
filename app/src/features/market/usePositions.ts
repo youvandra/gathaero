@@ -133,5 +133,10 @@ export function usePositions() {
     },
   });
 
-  return { positions: query.data ?? [], isLoading: query.isLoading && Boolean(address) };
+  return {
+    positions: query.data ?? [],
+    isLoading: query.isLoading && Boolean(address),
+    error: query.error,
+    refetch: () => void query.refetch(),
+  };
 }

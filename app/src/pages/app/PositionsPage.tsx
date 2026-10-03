@@ -1,6 +1,10 @@
 import { Button, Card, CardHeader, DataTable, Tag, useToast } from "cordon-ui";
 import type { Column, TagTone } from "cordon-ui";
-import { useAccount } from "wagmi";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+
+import { LoadError } from "../../components/feedback/LoadError";
+import { TableSkeleton } from "../../components/feedback/Skeletons";
 
 import { StatTile } from "../../features/dashboard/StatTile";
 import {
@@ -11,6 +15,7 @@ import {
 import { useTransact } from "../../features/market/useTransact";
 import { formatUsd, formatUsdc } from "../../lib/format";
 import { errorToast } from "../../lib/errors";
+import { usePageTitle } from "../../lib/hooks/usePageTitle";
 
 const STATE_TONE: Record<Position["state"], TagTone> = {
   open: "neutral",
@@ -26,7 +31,16 @@ const ACTION_LABEL: Record<Exclude<PositionAction, null>, string> = {
   withdraw: "Withdraw",
 };
 
-function buildColumns(onAction: (row: Position) => void, pending: boolean): Column<Position>[] {
+const ACTION_DONE: Record<Exclude<PositionAction, null>, string> = {
+  redeem: "Winnings claimed",
+  refund: "Refund claimed",
+  withdraw: "Liquidity withdrawn",
+};
+
+function buildColumns(
+  onAction: (row: Position) => void,
+  busyKey: string | null,
+): Column<Position>[] {
   return [
     {
       id: "flight",
@@ -77,7 +91,13 @@ function buildColumns(onAction: (row: Position) => void, pending: boolean): Colu
       align: "end",
       cell: (row) =>
         row.action ? (
-          <Button variant="primary" size="sm" disabled={pending} onClick={() => onAction(row)}>
+          <Button
+            variant="primary"
+            size="sm"
+            loading={busyKey === row.key}
+            disabled={busyKey !== null && busyKey !== row.key}
+            onClick={() => onAction(row)}
+          >
             {ACTION_LABEL[row.action]}
           </Button>
         ) : null,
@@ -86,10 +106,12 @@ function buildColumns(onAction: (row: Position) => void, pending: boolean): Colu
 }
 
 export function PositionsPage() {
+  usePageTitle("Positions");
+  const navigate = useNavigate();
   const { notify } = useToast();
-  const { isConnected } = useAccount();
-  const { positions, isLoading } = usePositions();
-  const { redeem, refund, removeLiquidity, pending } = useTransact();
+  const { positions, isLoading, error, refetch } = usePositions();
+  const { redeem, refund, removeLiquidity } = useTransact();
+  const [busyKey, setBusyKey] = useState<string | null>(null);
 
   const open = positions.filter((p) => p.state === "open");
   const claimable = positions.filter((p) => p.action !== null);
@@ -97,32 +119,51 @@ export function PositionsPage() {
   const claimableValue = claimable.reduce((sum, p) => sum + p.value, 0);
 
   const handleAction = async (row: Position) => {
+    if (!row.action) return;
+    setBusyKey(row.key);
     try {
       if (row.action === "redeem") await redeem(row.market);
       if (row.action === "refund") await refund(row.market);
       if (row.action === "withdraw") await removeLiquidity(row.market, row.shares);
-      notify({ tone: "positive", title: "Claimed", children: `${row.flight} · ${row.label}` });
+      notify({
+        tone: "positive",
+        title: ACTION_DONE[row.action],
+        children: `${row.flight} · ${row.label} · ${formatUsd(row.value)}`,
+      });
     } catch (error) {
       notify(errorToast(error));
+    } finally {
+      setBusyKey(null);
     }
   };
 
   const columns = buildColumns((row) => {
     void handleAction(row);
-  }, pending);
+  }, busyKey);
 
   return (
     <>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatTile label="Open positions" value={open.length.toString()} />
-        <StatTile label="Open value" value={formatUsd(openValue)} delta="at market price" up />
+        <StatTile label="Open positions" value={open.length.toString()} loading={isLoading} />
+        <StatTile
+          label="Open value"
+          value={formatUsd(openValue)}
+          delta="at market price"
+          up
+          loading={isLoading}
+        />
         <StatTile
           label="Claimable"
           value={formatUsd(claimableValue)}
           delta={`${claimable.length} ready`}
           up
+          loading={isLoading}
         />
-        <StatTile label="Settled" value={(positions.length - open.length).toString()} />
+        <StatTile
+          label="Settled"
+          value={(positions.length - open.length).toString()}
+          loading={isLoading}
+        />
       </div>
 
       <Card>
@@ -131,20 +172,28 @@ export function PositionsPage() {
             Positions
           </h2>
         </CardHeader>
-        <DataTable
-          columns={columns}
-          rows={positions}
-          rowKey={(row) => row.key}
-          density="default"
-          stickyHeader={false}
-          empty={
-            !isConnected
-              ? "Connect a wallet to see your positions"
-              : isLoading
-                ? "Loading positions…"
-                : "No positions yet — buy protection or a prediction to start"
-          }
-        />
+        {isLoading ? (
+          <TableSkeleton rows={3} columns={6} />
+        ) : error && positions.length === 0 ? (
+          <LoadError what="your positions" onRetry={refetch} />
+        ) : positions.length === 0 ? (
+          <div className="flex flex-col items-start gap-3 px-5 pb-6">
+            <p style={{ margin: 0, color: "var(--cordon-copy)" }}>
+              No positions yet. Pick a flight you're on and buy protection.
+            </p>
+            <Button variant="primary" size="sm" onClick={() => navigate("/app/market")}>
+              Browse markets
+            </Button>
+          </div>
+        ) : (
+          <DataTable
+            columns={columns}
+            rows={positions}
+            rowKey={(row) => row.key}
+            density="default"
+            stickyHeader={false}
+          />
+        )}
       </Card>
     </>
   );

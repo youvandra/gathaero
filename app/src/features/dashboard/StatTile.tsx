@@ -1,4 +1,4 @@
-import { Sparkline } from "cordon-ui";
+import { Skeleton, Sparkline } from "cordon-ui";
 
 type StatTileProps = {
   label: string;
@@ -6,9 +6,10 @@ type StatTileProps = {
   delta?: string;
   up?: boolean;
   history?: number[];
+  loading?: boolean;
 };
 
-export function StatTile({ label, value, delta, up = true, history }: StatTileProps) {
+export function StatTile({ label, value, delta, up = true, history, loading }: StatTileProps) {
   return (
     <div
       className="flex flex-col gap-2 rounded-[var(--cordon-radius-4)] border p-4"
@@ -27,28 +28,37 @@ export function StatTile({ label, value, delta, up = true, history }: StatTilePr
       >
         {label}
       </span>
-      <span
-        style={{
-          color: "var(--cordon-ink)",
-          fontSize: "var(--cordon-size-metric)",
-          fontWeight: 600,
-          lineHeight: 1.1,
-          fontVariantNumeric: "tabular-nums",
-        }}
-      >
-        {value}
-      </span>
-      {history ? <Sparkline values={history} height={26} area /> : null}
-      {delta ? (
-        <span
-          style={{
-            color: up ? "var(--cordon-positive)" : "var(--cordon-critical)",
-            fontSize: "var(--cordon-size-caption)",
-          }}
-        >
-          {delta}
-        </span>
-      ) : null}
+      {loading ? (
+        <>
+          <Skeleton width="68%" height={28} />
+          {delta ? <Skeleton width="40%" height={10} /> : null}
+        </>
+      ) : (
+        <>
+          <span
+            style={{
+              color: "var(--cordon-ink)",
+              fontSize: "var(--cordon-size-metric)",
+              fontWeight: 600,
+              lineHeight: 1.1,
+              fontVariantNumeric: "tabular-nums",
+            }}
+          >
+            {value}
+          </span>
+          {history ? <Sparkline values={history} height={26} area /> : null}
+          {delta ? (
+            <span
+              style={{
+                color: up ? "var(--cordon-positive)" : "var(--cordon-critical)",
+                fontSize: "var(--cordon-size-caption)",
+              }}
+            >
+              {delta}
+            </span>
+          ) : null}
+        </>
+      )}
     </div>
   );
 }

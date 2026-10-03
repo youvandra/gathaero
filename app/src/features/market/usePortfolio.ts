@@ -3,7 +3,8 @@ import { usePositions } from "./usePositions";
 
 export function usePortfolio() {
   const balance = useCollateralBalance();
-  const { positions, isLoading } = usePositions();
+  const { positions, isLoading: positionsLoading } = usePositions();
+  const isLoading = positionsLoading || balance === undefined;
 
   const open = positions.filter((position) => position.state === "open");
   const claimable = positions.filter((position) => position.action !== null);

@@ -5,11 +5,13 @@ import { useNavigate } from "react-router-dom";
 import { MarketTable } from "../../features/dashboard/MarketTable";
 import { useFlights } from "../../features/market/useFlights";
 import { useMarketTrends } from "../../features/market/useMarketTrends";
+import { usePageTitle } from "../../lib/hooks/usePageTitle";
 
 export function MarketsPage() {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
-  const { flights, isLoading } = useFlights();
+  usePageTitle("Markets");
+  const { flights, isLoading, error, refetch } = useFlights();
   const { trendOf } = useMarketTrends(flights);
 
   const rows = flights.filter((market) =>
@@ -35,7 +37,10 @@ export function MarketsPage() {
       <MarketTable
         rows={rows}
         trendOf={trendOf}
-        empty={isLoading ? "Loading markets…" : undefined}
+        loading={isLoading}
+        error={Boolean(error)}
+        onRetry={refetch}
+        empty={query ? `No flight matches "${query.trim()}"` : undefined}
         onSelect={(market) => navigate(`/app/market/${market.code}`)}
       />
     </Card>

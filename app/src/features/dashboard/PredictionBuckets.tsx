@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useAccount } from "wagmi";
 
 import { DELAYED, ON_TIME, quoteShares, type Bucket } from "../market/model";
-import { useTransact } from "../market/useTransact";
+import { STAGE_LABEL, useTransact } from "../market/useTransact";
 import { parseAmount, withSlippage } from "../../lib/format";
 import { errorToast } from "../../lib/errors";
 
@@ -18,7 +18,8 @@ function BucketRow({
 }) {
   const { isConnected } = useAccount();
   const { notify } = useToast();
-  const { buy, pending } = useTransact();
+  const { buy, pending, stage } = useTransact();
+  const [side, setSide] = useState<number | null>(null);
 
   const settled = bucket.resolved || bucket.voided;
 
@@ -28,6 +29,7 @@ function BucketRow({
       notify({ tone: "caution", title: "Enter a stake first" });
       return;
     }
+    setSide(outcome);
     try {
       await buy(
         bucket.address,
@@ -42,6 +44,8 @@ function BucketRow({
       });
     } catch (error) {
       notify(errorToast(error));
+    } finally {
+      setSide(null);
     }
   };
 
@@ -76,7 +80,13 @@ function BucketRow({
           <Button
             variant="secondary"
             size="sm"
+            loading={pending && side === ON_TIME}
             disabled={!isConnected || pending}
+            title={
+              pending
+                ? STAGE_LABEL[stage]
+                : `Pays 1 USDG per share if the flight arrives ${bucket.from}–${bucket.to}`
+            }
             onClick={() => {
               void trade(ON_TIME);
             }}
@@ -86,7 +96,13 @@ function BucketRow({
           <Button
             variant="ghost"
             size="sm"
+            loading={pending && side === DELAYED}
             disabled={!isConnected || pending}
+            title={
+              pending
+                ? STAGE_LABEL[stage]
+                : "Pays 1 USDG per share if it arrives outside this window"
+            }
             onClick={() => {
               void trade(DELAYED);
             }}
@@ -116,6 +132,7 @@ export function PredictionBuckets({ buckets, closed }: { buckets: Bucket[]; clos
           Stake per trade
         </span>
         <TextField
+          id="prediction-stake"
           inputMode="decimal"
           prefix="USDG"
           value={amount}
