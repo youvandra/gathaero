@@ -1,8 +1,13 @@
-import { useAccount, useReadContract } from "wagmi";
+import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
+import type { Address } from "viem";
+import { useAccount, usePublicClient, useReadContract } from "wagmi";
 
+import { targetChain } from "../../config/chains";
 import { env, isConfigured } from "../../config/env";
-import { marketLensAbi } from "../../lib/abi";
-import { DELAYED, ON_TIME, utcTime } from "./model";
+import { flightMarketAbi, marketLensAbi } from "../../lib/abi";
+import { DELAYED, ON_TIME, flightOfMarket, utcTime, type FlightMarket } from "./model";
+import { useFlights } from "./useFlights";
 
 type RawPosition = {
   market: `0x${string}`;
@@ -32,17 +37,30 @@ export type Position = {
   shares: bigint;
   mark: number;
   value: number;
-  state: "open" | "won" | "lost" | "voided" | "settled";
+  state: "open" | "won" | "lost" | "voided" | "settled" | "paid";
   action: PositionAction;
 };
 
 const PROTECTION_KIND = 0;
 const UNIT = 1e6;
 
-function labelOf(raw: RawPosition): string {
+type Windows = Map<string, string>;
+
+function labelOf(
+  raw: { market: Address; kind: number; lowerBound: bigint; upperBound: bigint },
+  windows: Windows,
+) {
   if (raw.kind === PROTECTION_KIND) return "Delay protection";
-  return `Lands ${utcTime(raw.lowerBound)}–${utcTime(raw.upperBound)}`;
+  const window = windows.get(raw.market.toLowerCase());
+  return `Lands ${window ?? `${utcTime(raw.lowerBound)}–${utcTime(raw.upperBound)}`}`;
 }
+
+const windowsOf = (flights: FlightMarket[]): Windows =>
+  new Map(
+    flights.flatMap((flight) =>
+      flight.buckets.map((bucket) => [bucket.address.toLowerCase(), bucket.window] as const),
+    ),
+  );
 
 function sideName(raw: RawPosition, outcome: number): string {
   if (raw.kind === PROTECTION_KIND) return outcome === DELAYED ? "Delayed" : "On time";
@@ -55,7 +73,7 @@ function stateOf(raw: RawPosition, outcome: number): Position["state"] {
   return raw.winning === outcome ? "won" : "lost";
 }
 
-function holdings(raw: RawPosition): Position[] {
+function holdings(raw: RawPosition, windows: Windows): Position[] {
   const delayed = Number(raw.delayedProbability) / 1e18;
   const sides = [
     { outcome: ON_TIME, shares: raw.onTimeBalance, price: 1 - delayed },
@@ -71,7 +89,7 @@ function holdings(raw: RawPosition): Position[] {
         key: `${raw.market}-${side.outcome}`,
         market: raw.market,
         flight: raw.number,
-        label: labelOf(raw),
+        label: labelOf(raw, windows),
         side: sideName(raw, side.outcome),
         shares: side.shares,
         mark,
@@ -82,14 +100,14 @@ function holdings(raw: RawPosition): Position[] {
     });
 }
 
-function extras(raw: RawPosition): Position[] {
+function extras(raw: RawPosition, windows: Windows): Position[] {
   const rows: Position[] = [];
   if (raw.voided && raw.contribution > 0n) {
     rows.push({
       key: `${raw.market}-refund`,
       market: raw.market,
       flight: raw.number,
-      label: labelOf(raw),
+      label: labelOf(raw, windows),
       side: "Refund",
       shares: raw.contribution,
       mark: 1,
@@ -103,7 +121,7 @@ function extras(raw: RawPosition): Position[] {
       key: `${raw.market}-lp`,
       market: raw.market,
       flight: raw.number,
-      label: labelOf(raw),
+      label: labelOf(raw, windows),
       side: "Liquidity",
       shares: raw.lpShares,
       mark: raw.lpShares > 0n ? Number(raw.lpValue) / Number(raw.lpShares) : 0,
@@ -115,8 +133,60 @@ function extras(raw: RawPosition): Position[] {
   return rows;
 }
 
+/** Payouts already sent to this wallet, pushed by the resolver or claimed. */
+function usePaidOut(address: Address | undefined, flights: FlightMarket[]) {
+  const publicClient = usePublicClient({ chainId: targetChain.id });
+  const markets = useMemo(
+    () =>
+      flights.flatMap((flight) =>
+        [flight.protection?.address, ...flight.buckets.map((bucket) => bucket.address)].filter(
+          (market): market is Address => Boolean(market),
+        ),
+      ),
+    [flights],
+  );
+
+  return useQuery({
+    queryKey: ["paid", address, markets.length],
+    enabled: isConfigured && Boolean(address && publicClient) && markets.length > 0,
+    refetchInterval: 20_000,
+    queryFn: async (): Promise<Position[]> => {
+      if (!publicClient || !address) return [];
+      const logs = await publicClient.getContractEvents({
+        address: markets,
+        abi: flightMarketAbi,
+        eventName: "Redeemed",
+        args: { holder: address },
+        fromBlock: env.deployBlock,
+      });
+      return logs.map((log) => {
+        const flight = flightOfMarket(flights, log.address);
+        const bucket = flight?.buckets.find(
+          (b) => b.address.toLowerCase() === log.address.toLowerCase(),
+        );
+        const amount = log.args.amountOut ?? 0n;
+        return {
+          key: `${log.transactionHash}-${log.logIndex}`,
+          market: log.address,
+          flight: flight?.code ?? "",
+          label: bucket ? `Lands ${bucket.window}` : "Delay protection",
+          side: "Paid to wallet",
+          shares: amount,
+          mark: 1,
+          value: Number(amount) / UNIT,
+          state: "paid",
+          action: null,
+        };
+      });
+    },
+  });
+}
+
 export function usePositions() {
   const { address } = useAccount();
+  const { flights } = useFlights();
+  const windows = useMemo(() => windowsOf(flights), [flights]);
+  const paid = usePaidOut(address, flights);
   const query = useReadContract({
     address: env.contracts.marketLens,
     abi: marketLensAbi,
@@ -127,16 +197,19 @@ export function usePositions() {
       refetchInterval: 10_000,
       select: (raw) =>
         raw.flatMap((position) => [
-          ...(position.voided ? [] : holdings(position)),
-          ...extras(position),
+          ...(position.voided ? [] : holdings(position, windows)),
+          ...extras(position, windows),
         ]),
     },
   });
 
   return {
-    positions: query.data ?? [],
+    positions: [...(query.data ?? []), ...(paid.data ?? [])],
     isLoading: query.isLoading && Boolean(address),
     error: query.error,
-    refetch: () => void query.refetch(),
+    refetch: () => {
+      void query.refetch();
+      void paid.refetch();
+    },
   };
 }

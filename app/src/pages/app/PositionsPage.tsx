@@ -28,16 +28,17 @@ const STATE_TONE: Record<Position["state"], TagTone> = {
   lost: "critical",
   voided: "caution",
   settled: "info",
+  paid: "positive",
 };
 
 const ACTION_LABEL: Record<Exclude<PositionAction, null>, string> = {
-  redeem: "Claim",
+  redeem: "Collect now",
   refund: "Refund",
   withdraw: "Withdraw",
 };
 
 const ACTION_DONE: Record<Exclude<PositionAction, null>, string> = {
-  redeem: "Winnings claimed",
+  redeem: "Winnings collected",
   refund: "Refund claimed",
   withdraw: "Liquidity withdrawn",
 };
@@ -166,9 +167,9 @@ export function PositionsPage() {
           loading={isLoading}
         />
         <StatTile
-          label="Claimable"
+          label="Paying out"
           value={formatUsd(claimableValue)}
-          delta={`${claimable.length} ready`}
+          delta={`${claimable.length} on the way to your wallet`}
           up
           loading={isLoading}
         />

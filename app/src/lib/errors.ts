@@ -51,11 +51,11 @@ const REVERTS: Record<string, Explained> = {
   },
   MarketAlreadyResolved: {
     title: "Market already settled",
-    message: "Open Positions to see your result and claim.",
+    message: "Open Positions to see your result. Winnings are sent to your wallet automatically.",
   },
   MarketNotResolved: {
     title: "Not settled yet",
-    message: "You can claim once the flight has landed and the market settles.",
+    message: "This settles about 30 minutes after the flight lands, and winnings are then sent to your wallet.",
   },
   SlippageExceeded: {
     title: "Price moved",
@@ -74,8 +74,8 @@ const REVERTS: Record<string, Explained> = {
     message: "Approve USDG in your wallet first, then try again.",
   },
   NothingToRedeem: {
-    title: "Nothing to claim",
-    message: "This wallet has no winning or refundable position in this market.",
+    title: "Nothing to collect",
+    message: "This wallet has no unpaid winnings or refund here. Payouts may already be in your wallet.",
   },
   InsufficientShares: {
     title: "Not enough shares",
