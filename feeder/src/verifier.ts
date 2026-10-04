@@ -1,16 +1,25 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { encodePacked, isAddress, isHex, keccak256, zeroAddress, type Address, type Hex } from "viem";
+import {
+  encodePacked,
+  isAddress,
+  isHex,
+  keccak256,
+  zeroAddress,
+  type Address,
+  type Hex,
+} from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 
 import { flightRegistryAbi, passRegistryAbi } from "./abi.js";
 import { dayOfYearUtc, parseBoardingPass } from "./bcbp.js";
 import { clientsFor } from "./chain.js";
 import { loadConfig } from "./config.js";
+import { isEmail, subscribe } from "./subscribers.js";
 
 const SIGNATURE_TTL_SECONDS = 15 * 60;
 const MAX_BODY_BYTES = 8 * 1024;
 
-type PassRequest = { flightId: Hex; wallet: Address; barcode: string };
+type PassRequest = { flightId: Hex; wallet: Address; barcode: string; email: string | null };
 
 class Rejected extends Error {
   constructor(
@@ -54,16 +63,20 @@ function parseRequest(body: string): PassRequest {
   } catch {
     throw new Rejected(400, "Invalid request.");
   }
-  const { flightId, wallet, barcode } = (data ?? {}) as Record<string, unknown>;
+  const { flightId, wallet, barcode, email } = (data ?? {}) as Record<string, unknown>;
   if (typeof flightId !== "string" || !isHex(flightId) || flightId.length !== 66) {
     throw new Rejected(400, "Unknown flight.");
   }
   if (typeof wallet !== "string" || !isAddress(wallet)) throw new Rejected(400, "Invalid wallet.");
   if (typeof barcode !== "string") throw new Rejected(400, "Missing barcode.");
-  return { flightId, wallet, barcode };
+  if (email !== undefined && email !== null && (typeof email !== "string" || !isEmail(email))) {
+    throw new Rejected(400, "That email address doesn't look right.");
+  }
+  return { flightId, wallet, barcode, email: typeof email === "string" ? email : null };
 }
 
-async function sign({ flightId, wallet, barcode }: PassRequest) {
+/** Checks the pass against the on-chain schedule and the registry's one-pass-one-wallet rule. */
+async function checkPass({ flightId, wallet, barcode }: PassRequest) {
   const pass = parseBoardingPass(barcode);
   if (!pass) throw new Rejected(422, "That isn't a boarding pass barcode.");
 
@@ -112,10 +125,17 @@ async function sign({ flightId, wallet, barcode }: PassRequest) {
       args: [flightId, wallet],
     }),
   ]);
-  if (alreadyPassenger) throw new Rejected(409, "This wallet is already verified for this flight.");
   if (holder !== zeroAddress && holder.toLowerCase() !== wallet.toLowerCase()) {
     throw new Rejected(409, "This boarding pass is already linked to another wallet.");
   }
+  return { pass, passHash, alreadyPassenger };
+}
+
+async function sign(request: PassRequest) {
+  const { flightId, wallet } = request;
+  const { pass, passHash, alreadyPassenger } = await checkPass(request);
+  if (alreadyPassenger) throw new Rejected(409, "This wallet is already verified for this flight.");
+  if (request.email) await subscribe(flightId, wallet, request.email);
 
   const expiry = BigInt(Math.floor(Date.now() / 1000) + SIGNATURE_TTL_SECONDS);
 
@@ -148,6 +168,14 @@ async function sign({ flightId, wallet, barcode }: PassRequest) {
   };
 }
 
+/** Saves an email for a flight's result; the pass must be valid and not linked to another wallet. */
+async function notify(request: PassRequest) {
+  if (!request.email) throw new Rejected(400, "Missing email.");
+  await checkPass(request);
+  await subscribe(request.flightId, request.wallet, request.email);
+  return { ok: true };
+}
+
 function send(res: ServerResponse, status: number, body: unknown) {
   res.writeHead(status, {
     "content-type": "application/json",
@@ -161,11 +189,13 @@ function send(res: ServerResponse, status: number, body: unknown) {
 createServer(async (req, res) => {
   if (req.method === "OPTIONS") return send(res, 204, null);
   if (req.method === "GET" && req.url === "/health") return send(res, 200, { ok: true });
-  if (req.method !== "POST" || req.url !== "/passes")
+  if (req.method !== "POST" || (req.url !== "/passes" && req.url !== "/notify"))
     return send(res, 404, { error: "Not found." });
 
   try {
-    send(res, 200, await sign(parseRequest(await readBody(req))));
+    const request = parseRequest(await readBody(req));
+    if (req.url === "/passes") return send(res, 200, await sign(request));
+    send(res, 200, await notify(request));
   } catch (error) {
     if (error instanceof Rejected) return send(res, error.status, { error: error.message });
     console.error(error);

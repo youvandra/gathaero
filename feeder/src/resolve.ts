@@ -4,6 +4,7 @@ import { flightMarketAbi, marketLensAbi, mockFeederAbi } from "./abi.js";
 import { fetchFlight } from "./aerodatabox.js";
 import { clientsFor, type Clients } from "./chain.js";
 import { loadConfig, type FeederConfig } from "./config.js";
+import { payOut } from "./payouts.js";
 import { confirm, flightIdOf } from "./tx.js";
 
 type Verdict = { kind: "landed"; delayMinutes: number } | { kind: "void" } | { kind: "pending" };
@@ -97,20 +98,41 @@ async function settle(
   }
 }
 
+async function settleAndPay(
+  clients: Clients,
+  config: FeederConfig,
+  flight: FlightView,
+  verdict: Verdict,
+) {
+  await settle(clients, config, flight, verdict);
+  const fresh = await clients.publicClient.readContract({
+    address: config.contracts.lens,
+    abi: marketLensAbi,
+    functionName: "flight",
+    args: [flight.flightId],
+  });
+  await payOut(clients, config, fresh);
+}
+
 async function sweep(clients: Clients, config: FeederConfig, manual: ManualVerdict | null) {
   const now = Math.floor(Date.now() / 1000);
 
   for (const flight of await readFlights(clients, config)) {
-    if (openMarketsOf(flight).length === 0) continue;
+    if (openMarketsOf(flight).length === 0) {
+      await payOut(clients, config, flight).catch((error: unknown) =>
+        console.warn(`  ${flight.number}: ${(error as Error).message}`),
+      );
+      continue;
+    }
 
     if (manual) {
       if (manual.flightId === flight.flightId)
-        await settle(clients, config, flight, manual.verdict);
+        await settleAndPay(clients, config, flight, manual.verdict);
       continue;
     }
 
     if (flight.finalized) {
-      await settle(clients, config, flight, { kind: "pending" });
+      await settleAndPay(clients, config, flight, { kind: "pending" });
       continue;
     }
 
@@ -124,7 +146,7 @@ async function sweep(clients: Clients, config: FeederConfig, manual: ManualVerdi
     }
 
     try {
-      await settle(clients, config, flight, await lookUp(config, flight, date));
+      await settleAndPay(clients, config, flight, await lookUp(config, flight, date));
     } catch (error) {
       console.warn(`  ${flight.number}: ${(error as Error).message}`);
     }

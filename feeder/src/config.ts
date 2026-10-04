@@ -16,6 +16,7 @@ export type FeederConfig = {
   };
   rapidApi: RapidApi | null;
   landedGraceMinutes: number;
+  deployBlock: bigint;
 };
 
 const requireEnv = (name: string): string => {
@@ -46,5 +47,6 @@ export function loadConfig(): FeederConfig {
     },
     rapidApi: key ? { key, host: process.env.RAPIDAPI_HOST ?? "aerodatabox.p.rapidapi.com" } : null,
     landedGraceMinutes: Number(process.env.LANDED_GRACE_MINUTES ?? 30),
+    deployBlock: BigInt(process.env.DEPLOY_BLOCK ?? 0),
   };
 }

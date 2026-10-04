@@ -5,10 +5,12 @@ import { fetchFlight } from "./aerodatabox.js";
 import { clientsFor, type Clients } from "./chain.js";
 import { loadConfig, type FeederConfig } from "./config.js";
 import flights from "./flights.json" with { type: "json" };
-import { seedTradeFor } from "./odds.js";
 import { confirm, flightIdOf } from "./tx.js";
 
 type Bucket = { fromMinutes: number; toMinutes: number; yes: number };
+
+// The first and last windows are open-ended, so every arrival lands in exactly one window.
+const OPEN_END_MINUTES = 24 * 60;
 
 type Listing = {
   number: string;
@@ -22,11 +24,15 @@ type Listing = {
 };
 
 const DEFAULT_BUCKETS: Bucket[] = [
-  { fromMinutes: -20, toMinutes: -5, yes: 0.22 },
+  { fromMinutes: -OPEN_END_MINUTES, toMinutes: -5, yes: 0.25 },
   { fromMinutes: -5, toMinutes: 10, yes: 0.45 },
   { fromMinutes: 10, toMinutes: 30, yes: 0.2 },
-  { fromMinutes: 30, toMinutes: 60, yes: 0.08 },
+  { fromMinutes: 30, toMinutes: OPEN_END_MINUTES, yes: 0.1 },
 ];
+
+const WAD = 10n ** 18n;
+const toWad = (probability: number): bigint =>
+  (BigInt(Math.round(Math.min(Math.max(probability, 0.01), 0.99) * 1e6)) * WAD) / 1_000_000n;
 
 const MIN_LEAD_SECONDS = 30 * 60;
 const PROTECTION_LIQUIDITY = parseUnits("2000", 6);
@@ -65,8 +71,7 @@ async function seedMarket(
   });
   if (seeded > 0n) return;
 
-  const trade = seedTradeFor(liquidity, delayedProbability);
-  await topUp(clients, config, liquidity + (trade?.amount ?? 0n));
+  await topUp(clients, config, liquidity);
   await confirm(
     clients,
     clients.walletClient.writeContract({
@@ -81,19 +86,8 @@ async function seedMarket(
     clients.walletClient.writeContract({
       address: market,
       abi: flightMarketAbi,
-      functionName: "addLiquidity",
-      args: [liquidity],
-    }),
-  );
-
-  if (!trade || trade.amount === 0n) return;
-  await confirm(
-    clients,
-    clients.walletClient.writeContract({
-      address: market,
-      abi: flightMarketAbi,
-      functionName: "buy",
-      args: [trade.outcome, trade.amount, 0n],
+      functionName: "seed",
+      args: [liquidity, toWad(delayedProbability)],
     }),
   );
 }
@@ -234,10 +228,14 @@ async function list(clients: Clients, config: FeederConfig, listing: Listing): P
   const arrival = new Date(schedule.scheduledArrival * 1000).toISOString();
 
   if (tooLate(schedule)) {
-    console.log(`${listing.number} ${listing.date} departs ${departure}, too late to trade, skipped`);
+    console.log(
+      `${listing.number} ${listing.date} departs ${departure}, too late to trade, skipped`,
+    );
     return;
   }
-  console.log(`${listing.number} ${listing.date} ${schedule.route} dep ${departure} arr ${arrival}`);
+  console.log(
+    `${listing.number} ${listing.date} ${schedule.route} dep ${departure} arr ${arrival}`,
+  );
 
   const protection = await ensureProtection(clients, config, flightId);
   await seedMarket(clients, config, protection, PROTECTION_LIQUIDITY, listing.delayProbability);

@@ -38,3 +38,6 @@ docs/pitch/
 
 # Remotion video project stays local
 video/
+
+# Off-chain emails and payout markers on the VPS
+feeder/data/
