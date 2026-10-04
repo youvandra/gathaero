@@ -57,15 +57,15 @@ docs/        spec.md (product), STATUS.md (this)
 | `MockERC20` | test **USDG** (Global Dollar, 6 dp) with open `mint` = faucet |
 
 - Collateral: `Deploy.s.sol` uses `COLLATERAL` if set (e.g. Paxos USDG), else deploys mock USDG.
-- Trading (`buy`, `addLiquidity`) closes at `scheduledArrival`; resolution has no time gate.
+- Trading (`buy`, `seed`, `addLiquidity`) closes at `scheduledDeparture`; resolution has no time gate.
 - `addLiquidity` is proportional (FPMM style): price never moves, the surplus outcome tokens go back
   to the LP, and each LP's principal is tracked so a void returns exactly what they put in.
 - `buy(outcome, amount, minSharesOut)` reverts on slippage; the app passes quote − 1%.
-- A finalized resolution can't be overwritten. `FlightOracleReceiver.setWorkflowOwner` limits
-  CRE reports to our workflow (the Chainlink forwarder is shared).
+- A finalized resolution can't be overwritten. `FlightOracleReceiver` refuses every report until
+  `setWorkflowOwner` is called, then accepts only that owner's workflow.
 - `Bought` event carries `delayedProbability` → price history without an indexer.
 
-Tests: `forge test` → **33/33 pass** (compiled with `via_ir`).
+Tests: `forge test` → **49 pass** (48 unit + solvency fuzz, compiled with `via_ir`).
 
 ## App (`app/src`)
 - All dashboard data is on-chain via `MarketLens` (no mocks). Hooks in `features/market/`:
@@ -80,10 +80,11 @@ Tests: `forge test` → **33/33 pass** (compiled with `via_ir`).
 
 ## Feeder (`feeder/`)
 - `npm run list` — registers every flight in `src/flights.json`, creates protection + 4 arrival-window
-  markets, seeds liquidity and sets starting odds. With `RAPIDAPI_KEY` the schedule/route come
+  markets (edge windows open-ended) and opens each with `seed(liquidity, probability)`. With `RAPIDAPI_KEY` the schedule/route come
   from AeroDataBox; otherwise from the JSON.
 - `npm run resolve` — for flights past arrival + grace: AeroDataBox `Arrived` → feed delay + resolve all
-  markets; `Canceled`/`Diverted` → void. `--watch` repeats every 10 min.
+  markets; `Canceled`/`Diverted` → void. Then `payouts.ts` pushes `redeemFor`/`refundFor` to every
+  buyer and emails kiosk subscribers through Resend. `--watch` repeats every 10 min.
 - Delay = actual arrival − scheduled arrival from the on-chain registry. Actual arrival is
   AeroDataBox `revisedTime` (gate arrival, the airline on-time standard), falling back to
   `runwayTime` (touchdown). With neither, the flight stays pending and is retried.
@@ -95,26 +96,17 @@ cd contracts && forge script script/Deploy.s.sol --rpc-url arbitrum_sepolia --pr
 # copy addresses into feeder/.env and app/.env (VITE_DEPLOY_BLOCK = deploy block)
 cd feeder && npm run list && npm run resolve -- --watch
 ```
-Verified end-to-end on local anvil: list → faucet → buy protection → resolve delayed → claim.
+Verified end-to-end on local anvil: seed → pass → buy → resolve delayed → payout pushed → email written.
 
-## Live deployment (Arbitrum Sepolia, v2 — 3 Oct 2026)
-| Contract | Address |
-|---|---|
-| Mock USDG (kept from v1) | `0xA50d9454E71aCf152399C872815ae6895cB53229` |
-| FlightRegistry | `0xa57225F541E5563ABF0F2C2A4F40C6B7ec8339D2` |
-| PassRegistry | `0x08c2f930750e0BF3c3AFb85f8c9a5Cd6fe6737e1` |
-| FlightOracleConsumer | `0xF629c6463ba63F372aC0138c5c2e3c511FB3b001` |
-| FlightOracleReceiver | `0x6920343789853FCef82432776bDD970E641c0CB3` |
-| MockFeeder | `0xa37C09Ad128442aB01C167F7875081D17a5393AF` |
-| MarketFactory | `0x9b0402DFe9CE7ad242E970BDcb1476e0120a6ff7` |
-| MarketLens | `0xf5144d8599dB21a30f4447112Ca267B80b49E376` |
-
-Deploy block `315254447`. Verifier signer `0x7A5d66675fc1f54E090aEf404832788430e88e97` (no funds).
-v1 contracts (no pass gating) are abandoned.
+## Earlier deployments
+v1 (no pass gating), v2 (block `315254447`, gated only the Delayed side) and v3 (factory
+`0xeD2c783B0037567c1f0ddf221cCb7649d185C4eF`, block `315275472`) stay on-chain. The v4 addresses are
+at the top of this file and in the README.
 
 ## Boarding pass (insurable interest)
-- Buying the **Delayed** side of a protection market reverts `NotPassenger` unless
-  `PassRegistry.isPassenger(flightId, msg.sender)`. Prediction markets and the On-time side stay open.
+- Every side of every market reverts `NotPassenger` unless `PassRegistry.isPassenger(flightId,
+  msg.sender)`, with no operator exception. `PassRegistry.staked` caps each passenger at 200 USDG
+  per flight.
 - Flow: app scans the IATA BCBP barcode (camera or photo) → `POST {VITE_VERIFIER_URL}/passes`
   → verifier checks flight number, route and day against the on-chain registry and returns an
   EIP-712 `Pass(flightId, wallet, passHash, expiry)` signature → the user calls
@@ -122,24 +114,23 @@ v1 contracts (no pass gating) are abandoned.
   one pass binds to one wallet; signatures expire after 15 minutes.
 - Not covered: BCBP barcodes are unsigned, so a forged barcode for a real flight still passes.
   Closing that needs an airline/PNR lookup.
-- Verifier runs on the VPS as `gathaero-verifier` on `:8790` (plain HTTP). An app served over
-  HTTPS needs the verifier behind HTTPS (domain + nginx) or the browser blocks the call.
+- Verifier runs on the VPS as `gathaero-verifier` on `:8790`, behind nginx at
+  `https://gathaero.space/verifier/` (`/passes`, `/notify` for result emails).
+- Testnet: `/demo-pass` and the market page's Use a demo pass generate a fresh BCBP for any open
+  flight, so testers without a real pass can try the flow.
 
 Deployer/operator `0x9F846D2054689a439DA8D0619f37F6c70Db03597`.
-12 real SIN departures listed from AeroDataBox (3–4 Oct).
-The resolver runs on the VPS as systemd unit `gathaero-resolver` (`~/gathaero-feeder`, `.env` mode 600,
+20 real SIN departures listed on v4 from AeroDataBox (4–5 Oct).
+The resolver runs on the VPS as systemd unit `gathaero-resolver` (`~/run-resolvers.sh`, `.env` mode 600,
 MemoryMax 400M, Restart=always). Logs: `journalctl -u gathaero-resolver -f`. To update: rsync `feeder/`
 (without `node_modules`/`.env`) then `sudo systemctl restart gathaero-resolver`. Never run a second
 resolver with the same key — concurrent nonces collide.
 
 ## Not done yet
-- Deploy to Arbitrum Sepolia (needs funded deployer key) and fill `app/.env`.
-- `RAPIDAPI_KEY` for real schedules/resolution; `flights.json` times are estimates until then.
-- CRE workflow typechecks against cre-sdk 1.23 but has not been simulated; it re-reports landed
-  flights each run (the oracle rejects the duplicate) — add a finalized read before going live.
-- `cordon-ui` is a `file:../../cordon-ui` dependency outside this repo. Decision: build locally
-  (`cd app && npm run build`, with `app/.env` pointing at Sepolia) and upload `app/dist/`; the host
-  must rewrite unknown paths to `index.html` (BrowserRouter).
-- `VITE_DEPLOY_BLOCK` must be set on public RPCs, or the trade-history log scan starts at block 0.
-- Boarding pass check is client-side only (localStorage).
-- No sell/exit before settlement (CPMM has no `sell`).
+- CRE workflow typechecks against cre-sdk 1.23 but has not been simulated or deployed to a DON; it
+  re-reports landed flights each run (the oracle rejects the duplicate) — add a finalized read first.
+- `cordon-ui` is a `file:../../cordon-ui` dependency outside this repo: build locally and upload
+  `app/dist/`; nginx rewrites unknown paths to `index.html`.
+- No sell/exit before settlement (the market maker has no `sell`).
+- Listing is manual (`npm run list` from a machine with the operator key, resolver stopped meanwhile).
+- Boarding passes are unsigned by airlines; passes cannot be revoked.

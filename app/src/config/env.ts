@@ -14,7 +14,6 @@ const readBigInt = (value: unknown): bigint =>
 export const env = {
   chainId: Number(readString(import.meta.env.VITE_CHAIN_ID, "421614")),
   rpcUrl: readString(import.meta.env.VITE_RPC_URL, "https://sepolia-rollup.arbitrum.io/rpc"),
-  walletConnectProjectId: readString(import.meta.env.VITE_WALLETCONNECT_PROJECT_ID, ""),
   deployBlock: readBigInt(import.meta.env.VITE_DEPLOY_BLOCK),
   faucet: import.meta.env.VITE_FAUCET !== "false",
   /** Testnet only: offers a generated boarding pass so anyone can try the passenger flow. */

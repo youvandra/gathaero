@@ -1,32 +1,35 @@
-# React + TypeScript + Vite
+# Gathæro app
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React 19, Vite, TypeScript (strict), wagmi and viem, built as a PWA. Live at
+<https://gathaero.space>.
 
-Currently, two official plugins are available:
+| Route | Page |
+|---|---|
+| `/` | Landing with live numbers from Arbitrum |
+| `/markets`, `/how`, `/docs` | Public pages |
+| `/app` | Wallet-gated app: Home, Markets, a market's detail, Positions, Vault |
+| `/kiosk` | The gate screen: choose, scan a boarding pass, pick, hand off by QR. Holds no wallet |
+| `/claim` | Where the kiosk QR lands on the traveller's phone: link the pass, confirm |
+| `/demo-pass` | Testnet only: a generated boarding pass for any open flight |
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+All data is read on-chain through `MarketLens`; trade history and payouts come
+from contract events since `VITE_DEPLOY_BLOCK`.
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
+cp .env.example .env    # addresses from the project README
+npm run dev
+npm run build           # tsc -b, then vite build
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+| Variable | Meaning |
+|---|---|
+| `VITE_CHAIN_ID`, `VITE_RPC_URL` | Arbitrum Sepolia by default |
+| `VITE_MARKET_FACTORY`, `VITE_MARKET_LENS`, `VITE_COLLATERAL`, `VITE_PASS_REGISTRY` | Contract addresses |
+| `VITE_VERIFIER_URL` | Boarding pass verifier, e.g. `https://gathaero.space/verifier` |
+| `VITE_DEPLOY_BLOCK` | First block to scan for events |
+| `VITE_FAUCET` | `false` hides the test USDG mint |
+| `VITE_DEMO_PASS` | `false` hides demo boarding passes |
+
+The UI components come from `cordon-ui`, a private library linked as a local
+dependency, so a fresh clone needs it alongside the repo to build.
