@@ -255,7 +255,8 @@ function MarketDetail({ market }: { market: FlightMarket }) {
         notify({
           tone: "caution",
           title: "That isn't a boarding pass barcode",
-          children: "Scan the barcode printed on your boarding pass or shown in your airline app.",
+          children:
+            "Scan the barcode or QR code printed on your boarding pass or shown in your airline app.",
         });
         return;
       }
@@ -424,7 +425,7 @@ function MarketDetail({ market }: { market: FlightMarket }) {
           </div>
           <ol className="flex w-full flex-col gap-2 text-left" style={{ margin: 0, padding: 0 }}>
             {[
-              "Scan the barcode with your camera, or upload a photo of it.",
+              "Scan the barcode or QR code with your camera, or upload a photo of it.",
               `We match it to ${market.code} · ${market.route} · ${market.date}.`,
               "Confirm one transaction that links the pass to your wallet.",
             ].map((step, index) => (

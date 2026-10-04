@@ -98,7 +98,7 @@ function Kiosk() {
       if (!pass) {
         problem(
           "That isn't a boarding pass",
-          "Scan the barcode on your boarding pass or in your airline app.",
+          "Scan the barcode or QR code on your boarding pass or in your airline app.",
         );
         return;
       }

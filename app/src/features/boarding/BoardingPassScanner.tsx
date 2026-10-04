@@ -13,7 +13,12 @@ async function createReader() {
   const hints = new Map<HintType, unknown>([
     [
       DecodeHintType.POSSIBLE_FORMATS,
-      [BarcodeFormat.PDF_417, BarcodeFormat.AZTEC, BarcodeFormat.QR_CODE],
+      [
+        BarcodeFormat.PDF_417,
+        BarcodeFormat.AZTEC,
+        BarcodeFormat.QR_CODE,
+        BarcodeFormat.DATA_MATRIX,
+      ],
     ],
     [DecodeHintType.TRY_HARDER, true],
   ]);
@@ -110,17 +115,13 @@ export function BoardingPassScanner({
             Camera unavailable. Allow camera access, or upload a photo of {subject}.
           </div>
         ) : null}
-        {status === "scanning" ? (
-          <div
-            className={
-              square
-                ? "pointer-events-none absolute left-1/2 top-1/2 h-1/2 aspect-square -translate-x-1/2 -translate-y-1/2 rounded-lg border-2"
-                : "pointer-events-none absolute inset-x-6 top-1/2 h-24 -translate-y-1/2 rounded-lg border-2"
-            }
-            style={{ borderColor: "var(--cordon-paper)" }}
-          />
-        ) : null}
+        {status === "scanning" ? <ScanGuide square={square} /> : null}
       </div>
+      {square ? null : (
+        <p className="m-0 text-center text-sm" style={{ color: "var(--cordon-copy)" }}>
+          Wide barcode, QR or Aztec code: any boarding pass works.
+        </p>
+      )}
       <input
         ref={photoInput}
         type="file"
@@ -131,6 +132,34 @@ export function BoardingPassScanner({
       <Button variant="secondary" block onClick={() => photoInput.current?.click()}>
         Upload a photo instead
       </Button>
+    </div>
+  );
+}
+
+const CORNERS = [
+  "left-0 top-0 border-l-[3px] border-t-[3px] rounded-tl-lg",
+  "right-0 top-0 border-r-[3px] border-t-[3px] rounded-tr-lg",
+  "left-0 bottom-0 border-l-[3px] border-b-[3px] rounded-bl-lg",
+  "right-0 bottom-0 border-r-[3px] border-b-[3px] rounded-br-lg",
+];
+
+/** Corner brackets that frame a wide boarding-pass barcode or a square QR code alike. */
+function ScanGuide({ square }: { square: boolean }) {
+  return (
+    <div
+      className={
+        square
+          ? "pointer-events-none absolute left-1/2 top-1/2 h-1/2 aspect-square -translate-x-1/2 -translate-y-1/2"
+          : "pointer-events-none absolute inset-x-[14%] inset-y-[18%]"
+      }
+    >
+      {CORNERS.map((corner) => (
+        <span
+          key={corner}
+          className={`absolute h-8 w-8 ${corner}`}
+          style={{ borderColor: "var(--cordon-paper)" }}
+        />
+      ))}
     </div>
   );
 }
