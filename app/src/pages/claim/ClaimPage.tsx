@@ -1,10 +1,19 @@
 import { Button, CordonProvider, Loader, Tag } from "cordon-ui";
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { isHex, zeroHash, type Hex } from "viem";
+import { isAddress, isHex, zeroHash, type Hex } from "viem";
 import { useAccount } from "wagmi";
 
-import { Big, BuyPanel, FlightCard, PredictPanel, Screen, muted } from "../../features/kiosk/parts";
+import {
+  AMOUNTS,
+  Big,
+  BuyPanel,
+  FlightCard,
+  PredictPanel,
+  Screen,
+  muted,
+  type Choice,
+} from "../../features/kiosk/parts";
 import { usePassenger } from "../../features/market/useBoardingPass";
 import { useFlights } from "../../features/market/useFlights";
 import { STAGE_LABEL, useTransact } from "../../features/market/useTransact";
@@ -36,6 +45,12 @@ function Claim() {
   const { isPassenger, isLoading: passLoading } = usePassenger(flightId ?? zeroHash);
   const [problem, setProblem] = useState<Problem | null>(null);
   const predict = params.get("m") === "predict";
+  const amount = params.get("a");
+  const bucket = params.get("b");
+  const initial: Choice | undefined =
+    amount && AMOUNTS.includes(amount)
+      ? { amount, bucket: bucket && isAddress(bucket) ? bucket : undefined }
+      : undefined;
   const [bought, setBought] = useState<{ amount: string; payout: bigint; window?: string } | null>(
     null,
   );
@@ -142,17 +157,25 @@ function Claim() {
       <Tag tone="positive" dot>
         Passenger verified
       </Tag>
-      <Big>{predict ? "When will it land?" : "How much cover do you want?"}</Big>
+      <Big>
+        {initial
+          ? "Confirm your choice"
+          : predict
+            ? "When will it land?"
+            : "How much cover do you want?"}
+      </Big>
       <FlightCard flight={flight} now={now} />
       {predict ? (
         <PredictPanel
           flight={flight}
+          initial={initial}
           onBought={(window, amount, payout) => setBought({ window, amount, payout })}
           onError={(title, message) => setProblem({ title, message })}
         />
       ) : (
         <BuyPanel
           flight={flight}
+          initial={initial}
           onBought={(amount, payout) => setBought({ amount, payout })}
           onError={(title, message) => setProblem({ title, message })}
         />

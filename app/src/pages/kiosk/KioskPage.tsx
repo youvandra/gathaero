@@ -9,7 +9,14 @@ import { env } from "../../config/env";
 import { checkPassForMarket, parseBoardingPass } from "../../features/boarding/bcbp";
 import { BoardingPassScanner } from "../../features/boarding/BoardingPassScanner";
 import { ModeCard, PredictArt, ProtectArt } from "../../features/kiosk/ModeCard";
-import { Big, FlightCard, Screen, muted } from "../../features/kiosk/parts";
+import {
+  Big,
+  ChoicePanel,
+  FlightCard,
+  Screen,
+  muted,
+  type Choice,
+} from "../../features/kiosk/parts";
 import { requestAttestation } from "../../features/market/useBoardingPass";
 import { useFlights } from "../../features/market/useFlights";
 import { passRegistryAbi } from "../../lib/abi";
@@ -28,10 +35,18 @@ type Mode = "protect" | "predict";
 type Step =
   | { kind: "choose" }
   | { kind: "pass" }
-  | { kind: "wallet"; pass: Pass }
+  | { kind: "pick"; pass: Pass }
+  | { kind: "wallet"; pass: Pass; choice: Choice; summary: string }
   | { kind: "working"; label: string }
   | { kind: "problem"; title: string; message: string }
-  | { kind: "handoff"; flightId: Hex; wallet: Address; url: string; expiresAt: number };
+  | {
+      kind: "handoff";
+      flightId: Hex;
+      wallet: Address;
+      summary: string;
+      url: string;
+      expiresAt: number;
+    };
 
 /** Pulls an address out of a wallet QR: plain 0x…, ethereum:0x…@chain, or similar. */
 function addressFrom(text: string): Address | null {
@@ -111,7 +126,7 @@ function Kiosk() {
         return;
       }
       setStep({
-        kind: "wallet",
+        kind: "pick",
         pass: { text, flightId: flight.id, passenger: pass.passenger, seat: pass.seat },
       });
     },
@@ -119,13 +134,15 @@ function Kiosk() {
   );
 
   const onWallet = useCallback(
-    async (pass: Pass, wallet: Address) => {
+    async (pass: Pass, wallet: Address, choice: Choice, summary: string) => {
       if (!publicClient) return;
       setStep({ kind: "working", label: "Checking your boarding pass…" });
       try {
         const claim = new URL("/claim", window.location.origin);
         claim.searchParams.set("f", pass.flightId);
         if (mode === "predict") claim.searchParams.set("m", "predict");
+        claim.searchParams.set("a", choice.amount);
+        if (choice.bucket) claim.searchParams.set("b", choice.bucket);
 
         const verified = await publicClient.readContract({
           address: env.contracts.passRegistry,
@@ -145,6 +162,7 @@ function Kiosk() {
           kind: "handoff",
           flightId: pass.flightId,
           wallet,
+          summary,
           url: claim.toString(),
           expiresAt,
         });
@@ -215,15 +233,45 @@ function Kiosk() {
     );
   }
 
-  if (step.kind === "wallet") {
+  if (step.kind === "pick") {
     const flight = flights.find((f) => f.id === step.pass.flightId);
-    const typedAddress = addressFrom(typed);
     return (
       <Screen aside={aside}>
         <p className="m-0 text-lg" style={muted}>
           Welcome, {step.pass.passenger}
           {step.pass.seat ? ` · seat ${step.pass.seat}` : ""}
         </p>
+        <Big>{mode === "predict" ? "When will it land?" : "How much cover do you want?"}</Big>
+        {flight ? (
+          <>
+            <FlightCard flight={flight} now={now} />
+            <ChoicePanel
+              flight={flight}
+              predict={mode === "predict"}
+              onChoose={(choice, summary) => {
+                setStartedAt(Math.floor(Date.now() / 1000));
+                setStep({ kind: "wallet", pass: step.pass, choice, summary });
+              }}
+            />
+          </>
+        ) : (
+          <Loader label="Loading your flight" />
+        )}
+        <Button variant="ghost" onClick={reset}>
+          Start over
+        </Button>
+      </Screen>
+    );
+  }
+
+  if (step.kind === "wallet") {
+    const flight = flights.find((f) => f.id === step.pass.flightId);
+    const typedAddress = addressFrom(typed);
+    return (
+      <Screen aside={aside}>
+        <Tag tone="positive" dot>
+          {step.summary}
+        </Tag>
         <Big>Show your wallet address</Big>
         {flight ? <FlightCard flight={flight} now={now} /> : null}
         <p className="m-0" style={muted}>
@@ -235,7 +283,7 @@ function Kiosk() {
             subject="your wallet's QR code"
             onScan={(text) => {
               const wallet = addressFrom(text);
-              if (wallet) void onWallet(step.pass, wallet);
+              if (wallet) void onWallet(step.pass, wallet, step.choice, step.summary);
               else
                 problem(
                   "That isn't a wallet address",
@@ -260,7 +308,9 @@ function Kiosk() {
               variant="primary"
               block
               disabled={!typedAddress}
-              onClick={() => typedAddress && void onWallet(step.pass, typedAddress)}
+              onClick={() =>
+                typedAddress && void onWallet(step.pass, typedAddress, step.choice, step.summary)
+              }
             >
               Continue
             </Button>
@@ -299,12 +349,11 @@ function Kiosk() {
       <Tag tone="positive" dot>
         Boarding pass checked
       </Tag>
-      <Big>Scan with your phone to finish</Big>
+      <Big>Scan with your phone to confirm</Big>
       <HandoffQr url={step.url} />
       <p className="m-0 text-lg" style={muted}>
-        Opens Gathæro{flight ? ` for ${flight.code}` : ""} in your wallet's browser. Link the pass
-        to {shortenAddress(step.wallet)} and{" "}
-        {mode === "protect" ? "choose your cover" : "make your prediction"} there.
+        Opens Gathæro{flight ? ` for ${flight.code}` : ""} in your wallet's browser with your{" "}
+        {step.summary} ready. Link the pass to {shortenAddress(step.wallet)} and confirm.
       </p>
       <p className="m-0" style={muted}>
         Code valid for {Math.floor(Math.max(0, step.expiresAt - now) / 60)}:
