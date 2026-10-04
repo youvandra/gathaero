@@ -7,6 +7,23 @@ Prediction and delay protection are the same primitive — a position on a fligh
 - **Repo:** `github.com/youvandra/gathaero` (branch `main`)
 - **Remote:** `git@github.com:youvandra/gathaero.git` (public), pushed over SSH
 
+## Current state (4 Oct 2026) — read this first
+- **Live:** https://gathaero.space (app, `/kiosk`, `/claim`), verifier at `/verifier/` → VPS `:8790`.
+- **v4 on Arbitrum Sepolia**, block 315593229: factory `0x60db695b5aF43e85541a4c14b2c1153e0e39628c`,
+  lens `0x8b94491963722C45DaEF93aEFb096b3b8c13c262`, registry `0xDBff899A166482DbC7d8A008D35386a1E7c33737`,
+  passes `0xB22e740E4f6A62cb49404A1dF4f4CcB0CB707d81`, feeder `0x87911883D88dF3B482A23D659538ed4C45b4A263`,
+  oracle `0x93166cf054834e55A6df3568a8CbB46a486D37eB`, receiver `0x74E4b0F472d1fcd3B9052899cB9C14Dc0D0d91f9`,
+  USDG (unchanged from v3) `0xA50d9454E71aCf152399C872815ae6895cB53229`.
+- v4 adds: `seed()` (operator opens pools as liquidity, cannot trade), `redeemFor`/`refundFor` (resolver
+  pushes payouts), per-flight 200 USDG cap in `PassRegistry`, `resolveVoid` blocked after a final arrival
+  and open to anyone after 3 days, receiver requires a workflow owner, `resolver()` follows factory owner.
+- **VPS:** `~/gathaero-feeder` = v4 (verifier + resolver), `~/gathaero-feeder-v3` = v3 resolver only.
+  `gathaero-resolver` runs `~/run-resolvers.sh`: v4 one-shot then v3 one-shot, every 10 min, one key.
+  Kiosk emails and payout markers live in `/home/ubuntu/gathaero-data` (mode 700).
+- Result emails go through Resend once `RESEND_API_KEY` is in the VPS `.env`; until then they are
+  written to `gathaero-data/outbox`.
+- Local env backups: `feeder/.env.v3`, `app/.env.v3`.
+
 ## Decisions locked
 | Area | Decision |
 |---|---|
