@@ -38,13 +38,13 @@ export function MarketsPage() {
             : null}
           {!isLoading && live.length === 0 ? (
             <div className="px-5 py-6 text-sm text-white/60">
-              No live markets right now. New flights are listed every day.
+              No live markets right now. New flights are listed ahead of departure.
             </div>
           ) : null}
           {live.map((market) => (
             <Link
               key={market.id}
-              to={`/app/market/${market.code}`}
+              to={`/app/market/${market.code}?id=${market.id}`}
               className="grid grid-cols-[1fr_auto_auto] items-center gap-4 border-b border-white/10 px-5 py-4 no-underline last:border-b-0 hover:bg-white/5"
             >
               <div>

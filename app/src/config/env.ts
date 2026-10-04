@@ -17,6 +17,8 @@ export const env = {
   walletConnectProjectId: readString(import.meta.env.VITE_WALLETCONNECT_PROJECT_ID, ""),
   deployBlock: readBigInt(import.meta.env.VITE_DEPLOY_BLOCK),
   faucet: import.meta.env.VITE_FAUCET !== "false",
+  /** Testnet only: offers a generated boarding pass so anyone can try the passenger flow. */
+  demoPass: import.meta.env.VITE_DEMO_PASS !== "false",
   verifierUrl: readString(import.meta.env.VITE_VERIFIER_URL, ""),
   contracts: {
     marketFactory: readAddress(import.meta.env.VITE_MARKET_FACTORY),

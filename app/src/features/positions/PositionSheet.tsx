@@ -13,6 +13,7 @@ const STATE_TONE: Record<Position["state"], TagTone> = {
   lost: "critical",
   voided: "caution",
   settled: "info",
+  paid: "positive",
 };
 
 export function PositionSheet({
@@ -48,7 +49,7 @@ export function PositionSheet({
               <Button
                 variant="secondary"
                 block
-                onClick={() => navigate(`/app/market/${flight.code}`)}
+                onClick={() => navigate(`/app/market/${flight.code}?id=${flight.id}`)}
               >
                 Open market
               </Button>

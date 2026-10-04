@@ -41,7 +41,7 @@ export function MarketsPage() {
         error={Boolean(error)}
         onRetry={refetch}
         empty={query ? `No flight matches "${query.trim()}"` : undefined}
-        onSelect={(market) => navigate(`/app/market/${market.code}`)}
+        onSelect={(market) => navigate(`/app/market/${market.code}?id=${market.id}`)}
       />
     </Card>
   );

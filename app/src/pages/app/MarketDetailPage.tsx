@@ -15,11 +15,12 @@ import {
 } from "cordon-ui";
 import type { ReactNode } from "react";
 import { useCallback, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useAccount, useReadContract } from "wagmi";
 
 import { checkPassForMarket, parseBoardingPass } from "../../features/boarding/bcbp";
 import { BoardingPassScanner } from "../../features/boarding/BoardingPassScanner";
+import { demoPassFor } from "../../features/boarding/demoPass";
 import { STATUS_TONE } from "../../features/dashboard/statusTone";
 import { PredictionBuckets } from "../../features/dashboard/PredictionBuckets";
 import { ProbabilityPanel } from "../../features/dashboard/ProbabilityPanel";
@@ -136,7 +137,8 @@ export function MarketDetailPage() {
   const navigate = useNavigate();
   const { code = "" } = useParams<{ code: string }>();
   const { flights, isLoading, error, refetch } = useFlights();
-  const market = pickFlight(flights, code);
+  const [params] = useSearchParams();
+  const market = pickFlight(flights, code, params.get("id"));
   usePageTitle(code.toUpperCase());
 
   if (!market) {
@@ -699,6 +701,15 @@ function MarketDetail({ market }: { market: FlightMarket }) {
         description={`${market.code} · ${market.route} · ${market.date}`}
         footer={
           <>
+            {env.demoPass ? (
+              <Button
+                variant="secondary"
+                loading={checking}
+                onClick={() => void handleScan(demoPassFor(market).barcode)}
+              >
+                Use a demo pass
+              </Button>
+            ) : null}
             <Button variant="ghost" onClick={() => setPassOpen(false)}>
               Cancel
             </Button>
@@ -721,6 +732,9 @@ function MarketDetail({ market }: { market: FlightMarket }) {
           >
             We check the barcode against this flight, then you confirm one transaction that links
             this pass to your wallet. Only a hash of your booking is stored on-chain.
+            {env.demoPass
+              ? " No boarding pass? On testnet, Use a demo pass generates one for this flight."
+              : ""}
           </p>
         </div>
       </Modal>

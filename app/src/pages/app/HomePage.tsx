@@ -20,7 +20,8 @@ function CardTitle({ children }: { children: string }) {
 
 export function HomePage() {
   const navigate = useNavigate();
-  const openDetail = (code: string) => navigate(`/app/market/${code}`);
+  const openDetail = (code: string, id?: string) =>
+    navigate(id ? `/app/market/${code}?id=${id}` : `/app/market/${code}`);
 
   usePageTitle("Home");
   const { flights, isLoading, error, refetch } = useFlights();
@@ -61,9 +62,9 @@ export function HomePage() {
       up: true,
     },
     {
-      label: "Claimable",
+      label: "Paying out",
       value: formatUsd(portfolio.claimableValue),
-      delta: `${portfolio.claimableCount} ready`,
+      delta: `${portfolio.claimableCount} on the way`,
       up: portfolio.claimableCount > 0,
     },
   ];
@@ -102,9 +103,9 @@ export function HomePage() {
             loading={isLoading}
             error={Boolean(error)}
             onRetry={refetch}
-            empty="No flights open right now. New flights are listed every day."
+            empty="No flights open right now. New flights are listed ahead of departure."
             pageSize={6}
-            onSelect={(market) => openDetail(market.code)}
+            onSelect={(market) => openDetail(market.code, market.id)}
           />
         </Card>
 
@@ -155,7 +156,7 @@ export function HomePage() {
               <button
                 key={market.id}
                 type="button"
-                onClick={() => openDetail(market.code)}
+                onClick={() => openDetail(market.code, market.id)}
                 className="flex items-center justify-between border-b px-5 py-3 text-left transition-colors last:border-b-0 hover:bg-black/[0.03]"
                 style={{ borderColor: "var(--cordon-hairline-soft)" }}
               >

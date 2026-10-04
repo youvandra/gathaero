@@ -5,6 +5,7 @@ import { AppLayout } from "./components/layout/AppShell";
 import { LandingPage } from "./landing/LandingPage";
 import { ConnectPage } from "./pages/connect/ConnectPage";
 import { ClaimPage } from "./pages/claim/ClaimPage";
+import { DemoPassPage } from "./pages/demo/DemoPassPage";
 import { KioskPage } from "./pages/kiosk/KioskPage";
 import { EarnPage } from "./pages/app/EarnPage";
 import { HomePage } from "./pages/app/HomePage";
@@ -28,6 +29,7 @@ export default function App() {
           <Route path="/connect" element={<ConnectPage />} />
           <Route path="/kiosk" element={<KioskPage />} />
           <Route path="/claim" element={<ClaimPage />} />
+          <Route path="/demo-pass" element={<DemoPassPage />} />
 
           <Route path="/app" element={<AppLayout />}>
             <Route index element={<HomePage />} />

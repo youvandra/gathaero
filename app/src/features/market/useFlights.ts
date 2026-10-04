@@ -27,7 +27,14 @@ export function useFlights() {
   };
 }
 
-export function pickFlight(flights: FlightMarket[], code: string): FlightMarket | undefined {
+/** A flight number repeats daily: an explicit flight id wins, then the open leg, then any. */
+export function pickFlight(
+  flights: FlightMarket[],
+  code: string,
+  id?: string | null,
+): FlightMarket | undefined {
+  const exact = id ? flights.find((flight) => flight.id.toLowerCase() === id.toLowerCase()) : null;
+  if (exact) return exact;
   const matches = flights.filter((flight) => flight.code.toLowerCase() === code.toLowerCase());
   return matches.find((flight) => flight.status === "open") ?? matches[0];
 }

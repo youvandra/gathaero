@@ -4,16 +4,8 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { isAddress, isHex, zeroHash, type Hex } from "viem";
 import { useAccount } from "wagmi";
 
-import {
-  AMOUNTS,
-  Big,
-  BuyPanel,
-  FlightCard,
-  PredictPanel,
-  Screen,
-  muted,
-  type Choice,
-} from "../../features/kiosk/parts";
+import { Big, BuyPanel, FlightCard, PredictPanel, Screen, muted } from "../../features/kiosk/parts";
+import { AMOUNTS, type Choice } from "../../features/kiosk/choice";
 import { usePassenger } from "../../features/market/useBoardingPass";
 import { useFlights } from "../../features/market/useFlights";
 import { STAGE_LABEL, useTransact } from "../../features/market/useTransact";
@@ -135,7 +127,7 @@ function Claim() {
               This code has expired. Scan your boarding pass at the kiosk again, or verify it on the
               market page.
             </p>
-            <Link to={`/app/market/${flight.code}`}>Open {flight.code}</Link>
+            <Link to={`/app/market/${flight.code}?id=${flight.id}`}>Open {flight.code}</Link>
           </>
         ) : (
           <>

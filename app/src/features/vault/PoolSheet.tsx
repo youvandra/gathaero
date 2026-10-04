@@ -33,7 +33,11 @@ export function PoolSheet({
       footer={
         pool ? (
           <div className="flex w-full gap-2">
-            <Button variant="secondary" block onClick={() => navigate(`/app/market/${pool.code}`)}>
+            <Button
+              variant="secondary"
+              block
+              onClick={() => navigate(`/app/market/${pool.code}?id=${pool.id}`)}
+            >
               Open market
             </Button>
             <Button variant="primary" block disabled={!canAdd} onClick={() => onAdd(pool)}>
