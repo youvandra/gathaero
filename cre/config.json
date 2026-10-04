@@ -2,10 +2,10 @@
   "schedule": "0 */15 * * * *",
   "aerodataboxHost": "aerodatabox.p.rapidapi.com",
   "chainSelectorName": "ethereum-testnet-sepolia-arbitrum-1",
-  "receiverAddress": "0x0000000000000000000000000000000000000000",
+  "receiverAddress": "0x74E4b0F472d1fcd3B9052899cB9C14Dc0D0d91f9",
   "gasLimit": "300000",
   "flights": [
-    { "number": "SQ956", "date": "2026-10-04" },
-    { "number": "TR286", "date": "2026-10-04" }
+    { "number": "SQ956", "date": "2026-10-05", "route": "SIN-CGK" },
+    { "number": "MH608", "date": "2026-10-04", "route": "SIN-KUL" }
   ]
 }

@@ -11,7 +11,8 @@ import {
 } from "@chainlink/cre-sdk";
 import { encodeAbiParameters, keccak256, toBytes, type Hex } from "viem";
 
-type FlightRef = { number: string; date: string };
+/** `date` is the local departure date the flight was listed under; `route` is "SIN-KUL". */
+type FlightRef = { number: string; date: string; route?: string };
 
 type Config = {
   schedule: string;
@@ -23,12 +24,13 @@ type Config = {
 };
 
 type Movement = {
-  scheduledTime?: { utc: string };
+  airport?: { iata?: string };
+  scheduledTime?: { utc: string; local?: string };
   revisedTime?: { utc: string };
   runwayTime?: { utc: string };
 };
 
-type AeroDataBoxFlight = { status: string; arrival: Movement };
+type AeroDataBoxFlight = { status: string; departure: Movement; arrival: Movement };
 
 type Landing = { arrived: boolean; delayMinutes: number };
 
@@ -40,8 +42,26 @@ function flightIdOf({ number, date }: FlightRef): Hex {
   return keccak256(toBytes(`${number.replace(/\s+/g, "").toUpperCase()}-${date}`));
 }
 
-function landingOf(payload: unknown): Landing {
-  const flight = Array.isArray(payload) ? (payload[0] as AeroDataBoxFlight | undefined) : undefined;
+const routeOf = (leg: AeroDataBoxFlight): string | null =>
+  leg.departure.airport?.iata && leg.arrival.airport?.iata
+    ? `${leg.departure.airport.iata}-${leg.arrival.airport.iata}`
+    : null;
+
+// The same number can fly overnight legs on adjacent days; pick the one the market was listed for.
+function legOf(payload: unknown, ref: FlightRef): AeroDataBoxFlight | undefined {
+  const legs = Array.isArray(payload) ? (payload as AeroDataBoxFlight[]) : [];
+  const departsOnDate = (leg: AeroDataBoxFlight) =>
+    leg.departure.scheduledTime?.local?.startsWith(ref.date) ?? false;
+  const matchesRoute = (leg: AeroDataBoxFlight) => !ref.route || routeOf(leg) === ref.route;
+  return (
+    legs.find((leg) => departsOnDate(leg) && matchesRoute(leg)) ??
+    legs.find(departsOnDate) ??
+    legs.find(matchesRoute)
+  );
+}
+
+function landingOf(payload: unknown, ref: FlightRef): Landing {
+  const flight = legOf(payload, ref);
   const scheduled = flight?.arrival.scheduledTime?.utc;
   if (!flight || !scheduled || flight.status !== "Arrived") {
     return { arrived: false, delayMinutes: 0 };
@@ -66,7 +86,7 @@ const fetchLanding =
       })
       .result();
     if (!ok(response)) return { arrived: false, delayMinutes: 0 };
-    return landingOf(json(response));
+    return landingOf(json(response), flight);
   };
 
 function report(
