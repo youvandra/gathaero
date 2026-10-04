@@ -194,7 +194,7 @@ flowchart LR
 | An attestation works only for the wallet it was signed for, and only for 15 minutes | EIP-712 `Pass(flightId, wallet, passHash, expiry)` | `Unauthorized`, `PassExpired` |
 | A wallet can put at most 200 USDG on one flight, across all its markets | `PassRegistry.MAX_STAKE`, `staked[flightId][wallet]`, written only by listed markets | `StakeLimitExceeded` |
 | Payouts and refunds can only go to the holder, whoever sends them | `FlightMarket.redeemFor`, `refundFor` | — |
-| The operator opens a pool as liquidity and holds no position | `FlightMarket.seed`, once, operator only | `MarketAlreadySeeded` |
+| The operator opens a pool as liquidity at a chosen probability, once, and never trades | `FlightMarket.seed`, once, operator only | `MarketAlreadySeeded` |
 | A flight with a final arrival time cannot be voided; an unreported one can be voided by anyone after 3 days | `FlightMarket.resolveVoid`, `VOID_GRACE` | `ResolutionFinal`, `Unauthorized` |
 | Positions stay with the wallet that bought them | `OutcomeToken._update` | `NotTransferable` |
 | Trading closes at scheduled departure | `FlightMarket.scheduledDeparture` | `MarketClosed` |
@@ -377,11 +377,15 @@ The app reads the addresses above from `app/.env`; see
   booking with the airline closes it. On testnet the app makes this explicit
   with a demo pass generator, so anyone can try the flow; mainnet would remove
   it and check bookings instead.
-- **One resolver reports arrivals today.** The operator key that lists markets
-  also feeds the delay through `MockFeeder`. The operator holds no position, so
-  it has nothing to gain from a false report, but the report is still trusted.
-  The Chainlink CRE workflow that replaces it is written and typechecked, and is
-  not yet deployed to a DON.
+- **One resolver reports arrivals today, and it is also the liquidity.** The
+  operator key that lists markets also feeds the delay through `MockFeeder`, and
+  it seeded every pool. Seeding leaves it balanced, but as passengers buy, the
+  pool takes the other side, so the operator ends up exposed to the outcome it
+  reports. The arrival comes from AeroDataBox and anyone can check it against
+  public flight data, but the report is still trusted. The fix is to split the
+  two roles: the Chainlink CRE workflow, written and typechecked but not yet
+  deployed to a DON, takes over reporting, and outside liquidity providers take
+  over seeding through the vault.
 - **Passes cannot be revoked.** A pass found to be forged after registration
   keeps its place; revocation would come with an airline partner.
 - **Result emails depend on an off-chain service.** Addresses are kept only on

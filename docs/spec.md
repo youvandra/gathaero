@@ -42,7 +42,7 @@ installable as a PWA, with the blockchain kept out of the way.
 | No size limit | 200 USDG per passenger per flight, across every market on it |
 | Positions as tradable tokens | Non-transferable, so exposure cannot move to someone not on the flight |
 | One delay market per flight | A protection pool plus four arrival-window pools, the edge windows open-ended |
-| Operator seeds odds with a trade | `seed()` opens a pool as liquidity at a chosen probability; the operator holds no position |
+| Operator seeds odds with a trade | `seed()` opens a pool as liquidity at a chosen probability; the operator never trades, though as the liquidity it takes the other side of every trade |
 | Winners redeem | The resolver pushes every payout with `redeemFor`; kiosk buyers get their result by email |
 | One route (SIN→CGK) | Real Changi departures to Kuala Lumpur, Jakarta, Bali, Bangkok, Manila, Tokyo and more |
 | Chainlink CRE as the live oracle | The resolver posts arrivals through `MockFeeder`; the CRE workflow is written and typechecked, not yet deployed |
