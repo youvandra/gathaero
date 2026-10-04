@@ -36,6 +36,7 @@ type Line = { label: string; stake: bigint; paid: bigint; result: "won" | "lost"
 const ON_TIME = 0;
 const LOG_CHUNK = 5_000_000n;
 const OPEN_END_SECONDS = 6n * 3600n;
+const LOGO_URL = "https://gathaero.space/email/mark.png";
 const doneDir = () => join(process.env.DATA_DIR ?? "data", "paid");
 
 const usd = (amount: bigint) => Number(formatUnits(amount, 6)).toFixed(2);
@@ -186,7 +187,12 @@ function landedLine(flight: SettledFlight): string {
   return `${flight.number} landed on time`;
 }
 
-function compose(flight: SettledFlight, wallet: Address, lines: Line[], receipt: Hex | undefined) {
+export function compose(
+  flight: SettledFlight,
+  wallet: Address,
+  lines: Line[],
+  receipt: Hex | undefined,
+) {
   const total = lines.reduce((sum, line) => sum + line.paid, 0n);
   const won = lines.some((line) => line.result === "won");
   const refunded = lines.every((line) => line.result === "refunded");
@@ -214,19 +220,41 @@ function compose(flight: SettledFlight, wallet: Address, lines: Line[], receipt:
     .join("\n");
 
   const rows = lines
-    .map(
-      (line) =>
-        `<tr><td style="padding:8px 0">${line.label}</td><td style="padding:8px 12px;text-align:right">$${usd(line.stake)}</td><td style="padding:8px 0;text-align:right;font-weight:600;color:${line.result === "lost" ? "#6f6f6f" : "#2f7a46"}">${line.result === "lost" ? "lost" : `+$${usd(line.paid)}`}</td></tr>`,
-    )
+    .map((line) => {
+      const lost = line.result === "lost";
+      const outcome = lost ? "Lost" : line.result === "refunded" ? "Refunded" : "Won";
+      return `<tr>
+<td style="padding:14px 0;border-bottom:1px solid #efe9e2;font-size:15px;color:#1d1a1b">${line.label}<br><span style="font-size:13px;color:#8a7f80">Staked $${usd(line.stake)} · ${outcome}</span></td>
+<td align="right" style="padding:14px 0;border-bottom:1px solid #efe9e2;font-size:17px;font-weight:700;color:${lost ? "#8a7f80" : "#2f7a46"};white-space:nowrap">${lost ? "$0.00" : `+$${usd(line.paid)}`}</td>
+</tr>`;
+    })
     .join("");
-  const html = `<div style="font-family:Geist,Helvetica,Arial,sans-serif;max-width:520px;margin:0 auto;color:#1d1a1b">
-<p style="font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:#8c1320;margin:0 0 8px">gathæro · ${flight.number}</p>
-<h1 style="font-size:26px;margin:0 0 16px">${subject}</h1>
-<table style="width:100%;border-collapse:collapse;font-size:15px;border-top:1px solid #eee">${rows}</table>
-${sent ? `<p style="font-size:15px">${sent}</p>` : ""}
-${explorer ? `<p><a href="${explorer}" style="color:#8c1320">View the payout on Arbiscan</a></p>` : ""}
-<p style="font-size:13px;color:#6f6f6f">Nothing to claim: payouts go straight to your wallet. We delete this email address now that your flight has settled.</p>
-</div>`;
+  const button = explorer
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0 8px"><tr><td style="background:#8c1320;border-radius:999px">
+<a href="${explorer}" style="display:inline-block;padding:13px 24px;font-size:15px;font-weight:600;color:#fff6e0;text-decoration:none">View the payout on Arbiscan →</a>
+</td></tr></table>`
+    : "";
+  const html = `<!doctype html><html><body style="margin:0;padding:0;background:#f4f1ec">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f1ec;padding:32px 12px;font-family:Geist,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif">
+<tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:20px;overflow:hidden">
+<tr><td style="background:#8c1320;background-image:linear-gradient(160deg,#c2415f,#8c1320);padding:22px 32px">
+<table role="presentation" cellpadding="0" cellspacing="0"><tr>
+<td style="vertical-align:middle"><img src="${LOGO_URL}" width="40" height="40" alt="" style="display:block;border-radius:10px"></td>
+<td style="vertical-align:middle;padding-left:12px;font-size:22px;font-weight:700;color:#fff6e0;letter-spacing:-.02em">gathæro</td>
+<td style="vertical-align:middle;padding-left:16px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#f3c9d0">${flight.number} · ${flight.route.replace("-", " → ")}</td>
+</tr></table>
+</td></tr>
+<tr><td style="padding:32px">
+<h1 style="margin:0 0 20px;font-size:26px;line-height:1.2;color:#1d1a1b;letter-spacing:-.01em">${subject}</h1>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #efe9e2">${rows}</table>
+${sent ? `<p style="margin:20px 0 0;font-size:15px;line-height:1.5;color:#1d1a1b">${total > 0n ? `<strong>${usd(total)} USDG</strong> was sent to your wallet` : ""}<br><span style="font-family:Menlo,monospace;font-size:13px;color:#6f6f6f">${wallet}</span></p>` : ""}
+${button}
+</td></tr>
+<tr><td style="padding:20px 32px;background:#faf7f3;font-size:13px;line-height:1.5;color:#8a7f80">Nothing to claim: payouts go straight to your wallet. We delete this email address now that your flight has settled.<br><a href="https://gathaero.space" style="color:#8c1320;text-decoration:none">gathaero.space</a></td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
   return { subject, text, html };
 }
 
