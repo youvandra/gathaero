@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/assets/banner.png" alt="Gathæro: trade your own flight" width="100%"></p>
+
 # Gathæro
 
 **Trade your own flight.** Gathæro is a flight market on Arbitrum that only the
@@ -7,7 +9,7 @@ linked to their wallet on-chain, and they can **protect** against a delay or
 gate arrival, with no claim to file.
 
 [![Solidity](https://img.shields.io/badge/Solidity-0.8.28-363636)](contracts)
-[![Foundry](https://img.shields.io/badge/Foundry-38%20tests%20passing-2f855a)](#testing)
+[![Foundry](https://img.shields.io/badge/Foundry-39%20tests%20passing-2f855a)](#testing)
 [![Arbitrum Sepolia](https://img.shields.io/badge/Arbitrum%20Sepolia-421614-28A0F0)](https://sepolia.arbiscan.io/address/0xeD2c783B0037567c1f0ddf221cCb7649d185C4eF)
 [![USDG](https://img.shields.io/badge/settles%20in-USDG-0B6E4F)](#tech-stack)
 [![Chainlink CRE](https://img.shields.io/badge/Chainlink-CRE%20workflow-375BD2)](cre)
@@ -52,6 +54,7 @@ a local package.
 [Settlement](#settlement) · [Boarding pass verification](#boarding-pass-verification) ·
 [Kiosk mode](#kiosk-mode) · [What is deployed](#what-is-deployed) ·
 [Quick start](#quick-start) · [What this does not claim](#what-this-does-not-claim) ·
+[Security review](#security-review) ·
 [Tech stack](#tech-stack) · [Partner technology](#partner-technology) ·
 [Repository structure](#repository-structure) · [Testing](#testing) ·
 [Running it](#running-it) · [Roadmap](#roadmap) · [Licence](#licence)
@@ -349,6 +352,40 @@ The app reads the addresses above from `app/.env`; see
 
 ---
 
+## Security review
+
+A self-review of every contract in `contracts/src`, done on 4 October 2026
+against the v3 deployment. No finding lets an outside party take funds. The
+solvency fuzz test (see [Testing](#testing)) backs the accounting: across random sequences of
+liquidity, trades, settlement and voids, every holder exits and only rounding
+dust stays behind.
+
+**What holds up**
+
+- The market maker keeps complete sets: every USDG in mints one On time and one
+  Delayed token, and every USDG out burns one winning token.
+- Rounding favours the pool; checks-effects-interactions with `nonReentrant` and
+  `SafeERC20` on every transfer.
+- Pass signatures are EIP-712, bound to the caller's wallet and the chain, so a
+  signature cannot be replayed or used by another wallet.
+- Arrival data is write-once, positions are non-transferable, and every revert is
+  a custom error.
+
+**Findings, and the fix planned before mainnet**
+
+| # | Severity | Finding | Planned fix |
+|---|---|---|---|
+| 1 | Medium | The operator seeds opening odds with a trade, exempt from the pass and the stake cap, and the same key reports arrivals through `MockFeeder`. | Set opening odds inside the first `addLiquidity` (a probability hint, as in Gnosis FPMM) and remove the operator exemption. Arrivals move to Chainlink CRE. |
+| 2 | Medium | `resolveVoid` stays callable after the oracle has finalized, so the operator could void a settled outcome. | Revert `resolveVoid` once the flight's resolution is final. |
+| 3 | Medium | A market whose arrival is never reported waits on the operator to void it. | Anyone may void a market from `scheduledArrival + 3 days` without a final resolution. |
+| 4 | Low | The 200 USDG cap applies per market, so one wallet can stake across the protection pool and every window of a flight. | Track stake per wallet per flight in one shared ledger. |
+| 5 | Low | Arrival windows cover −20 to +60 minutes; an arrival outside them resolves every window to No. | Open-ended first and last windows (a listing change only). |
+| 6 | Low | `FlightOracleReceiver` accepts any workflow while `workflowOwner` is unset. Its forwarder is the operator today. | Require a workflow owner before reports are accepted, ahead of pointing it at the Chainlink forwarder. |
+| 7 | Low | Seeding is two transactions, so a passenger could buy at 50/50 in between. | Closed by fix 1. |
+| 8 | Info | Each market keeps the factory owner at creation as its resolver; passes cannot be revoked. | Documented; revisit with an airline partner. |
+
+---
+
 ## Tech stack
 
 | Layer | Technology | Why this one |
@@ -406,7 +443,7 @@ contracts/          Foundry project
   src/lens/         MarketLens
   src/interfaces/   IFlightRegistry, IFlightOracle, IPassRegistry
   src/lib/          Errors
-  test/             38 forge tests
+  test/             38 unit tests + solvency fuzz
   script/           Deploy.s.sol, export-abis.sh
 feeder/             Node services
   src/listing.ts    lists flights and seeds markets
@@ -418,7 +455,7 @@ cre/                Chainlink CRE workflow
 app/                web app (Vite, React, PWA)
   src/pages/        landing, app, kiosk, claim
   src/features/     market, boarding, positions, vault, kiosk, wallet
-docs/               status and runbook
+docs/               status, runbook, README banner
 ```
 
 ---
@@ -427,6 +464,7 @@ docs/               status and runbook
 
 ```bash
 cd contracts && forge test
+forge test --match-contract Solvency --fuzz-runs 5000
 ```
 
 | Suite | Tests | Covers |
@@ -435,6 +473,7 @@ cd contracts && forge test
 | `PassRegistry.t.sol` | 11 | passenger gate on every side and market, signature bound to wallet, one pass one wallet, expiry, the 200 USDG cap, non-transferable positions, operator seeding |
 | `FlightOracleReceiver.t.sol` | 3 | CRE reports accepted only from the configured workflow owner |
 | `MarketLens.t.sol` | 3 | flight and position views |
+| `Solvency.t.sol` | 1 fuzz | random deposits and trades, then settle or void: every holder exits and the market never owes more than it holds (5,000 runs) |
 
 The app and services typecheck with `tsc --noEmit` under `strict`.
 
