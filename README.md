@@ -6,11 +6,12 @@
 people on board can use. A traveller scans their boarding pass, the pass is
 linked to their wallet on-chain, and they can **protect** against a delay or
 **predict** the arrival time. Every market settles in USDG from the flight's real
-gate arrival, with no claim to file.
+gate arrival, and winnings are sent to the winner's wallet automatically: there is
+nothing to claim.
 
 [![Solidity](https://img.shields.io/badge/Solidity-0.8.28-363636)](contracts)
-[![Foundry](https://img.shields.io/badge/Foundry-39%20tests%20passing-2f855a)](#testing)
-[![Arbitrum Sepolia](https://img.shields.io/badge/Arbitrum%20Sepolia-421614-28A0F0)](https://sepolia.arbiscan.io/address/0xeD2c783B0037567c1f0ddf221cCb7649d185C4eF)
+[![Foundry](https://img.shields.io/badge/Foundry-49%20tests%20passing-2f855a)](#testing)
+[![Arbitrum Sepolia](https://img.shields.io/badge/Arbitrum%20Sepolia-421614-28A0F0)](https://sepolia.arbiscan.io/address/0x60db695b5aF43e85541a4c14b2c1153e0e39628c)
 [![USDG](https://img.shields.io/badge/settles%20in-USDG-0B6E4F)](#tech-stack)
 [![Chainlink CRE](https://img.shields.io/badge/Chainlink-CRE%20workflow-375BD2)](cre)
 [![React](https://img.shields.io/badge/React-19-149ECA)](app)
@@ -21,7 +22,7 @@ gate arrival, with no claim to file.
 |---|---|
 | **The app** | <https://gathaero.space> |
 | **Kiosk mode, as a gate screen would show it** | <https://gathaero.space/kiosk> |
-| **The market factory, on Arbiscan** | [`0xeD2c…C4eF`](https://sepolia.arbiscan.io/address/0xeD2c783B0037567c1f0ddf221cCb7649d185C4eF) |
+| **The market factory, on Arbiscan** | [`0x60db…628c`](https://sepolia.arbiscan.io/address/0x60db695b5aF43e85541a4c14b2c1153e0e39628c) |
 | **A real flight, settled from real data** | [AK714 SIN→KUL, 3 Oct, 5 min late, settled On time](https://sepolia.arbiscan.io/tx/0x43736bfe1a69ea6c388eed67e33b94e395175def81ad14df2e072deffca836c0) |
 
 ---
@@ -38,7 +39,7 @@ git log --reverse --format="%ad %s" --date=short
 
 **Built at the event:** the contracts, the boarding pass verifier, the listing
 and settlement services, the Chainlink CRE workflow, the web app, the kiosk
-mode, and three deployments to Arbitrum Sepolia.
+mode, and four deployments to Arbitrum Sepolia.
 
 **Reused:** open-source libraries (OpenZeppelin, viem, wagmi, zxing) and a
 private UI component library written before the event, which the app imports as
@@ -113,14 +114,15 @@ arrival.
 
 | When | What happens | Where |
 |---|---|---|
-| Day before | Listing reads the schedule and registers the flight, then opens a protection pool and four arrival-window pools, seeded with opening odds | `feeder/src/listing.ts` → `FlightRegistry.registerFlight`, `MarketFactory.createProtection`, `createRange` |
+| Day before | Listing reads the schedule and registers the flight, then opens a protection pool and four arrival-window pools, seeded with opening odds | `feeder/src/listing.ts` → `FlightRegistry.registerFlight`, `MarketFactory.createProtection`, `createRange`, `FlightMarket.seed` |
 | At the gate | Traveller scans the boarding pass; verifier signs `Pass(flightId, wallet, passHash, expiry)` | `feeder/src/verifier.ts` |
 | At the gate | Traveller registers the pass | `PassRegistry.register` |
 | Before departure | Traveller buys protection or a window | `FlightMarket.buy` |
 | Scheduled departure | Every market for the flight stops trading | `FlightMarket.isTrading` |
 | Arrival + 30 min | Resolver reads AeroDataBox; when the flight is `Arrived`, it writes the delay | `feeder/src/resolve.ts` → `MockFeeder.feed` → `FlightOracleConsumer` |
 | Same transaction batch | Each market resolves against the recorded delay | `FlightMarket.resolve` |
-| Any time after | Winners redeem; LPs withdraw | `FlightMarket.redeem`, `removeLiquidity` |
+| Right after | The resolver pushes every payout and refund to the buyer's wallet, then emails anyone who left an address at the kiosk | `feeder/src/payouts.ts` → `FlightMarket.redeemFor`, `refundFor` |
+| Any time after | LPs withdraw | `FlightMarket.removeLiquidity` |
 
 ---
 
@@ -135,6 +137,7 @@ flowchart LR
     Resolver[Resolver]
     CRE[Chainlink CRE workflow]
     ADB[(AeroDataBox)]
+    Mail[(Resend email)]
   end
   subgraph Arbitrum
     FR[FlightRegistry]
@@ -158,6 +161,9 @@ flowchart LR
   MF -- deploys --> FM
   Resolver -- arrival --> ADB
   Resolver --> MFd --> OC
+  Resolver -- redeemFor / refundFor --> FM
+  Resolver -- result --> Mail
+  FM -- recordStake --> PR
   CRE -- arrival, node consensus --> ADB
   CRE --> RX --> OC
   FM -- resolution --> OC
@@ -167,9 +173,9 @@ flowchart LR
 | Contract | Job |
 |---|---|
 | `FlightRegistry` | Schedules: number, route, scheduled departure and arrival, delay threshold. Written once per flight. |
-| `PassRegistry` | Which wallet is a passenger of which flight, and which wallet holds each boarding pass. |
+| `PassRegistry` | Which wallet is a passenger of which flight, which wallet holds each boarding pass, and how much each passenger has staked on their flight. |
 | `MarketFactory` | Deploys one protection pool and any number of arrival-window pools per flight. |
-| `FlightMarket` | A fixed-product market maker over two outcomes, with proportional liquidity, the passenger gate and the stake cap. |
+| `FlightMarket` | A fixed-product market maker over two outcomes: seeded opening odds, proportional liquidity, the passenger gate, and payouts anyone can push to the holder. |
 | `OutcomeToken` | ERC-1155 shares for On time and Delayed, one token contract per market, non-transferable between wallets. |
 | `FlightOracleConsumer` | The delay of each flight, written once and then final. |
 | `FlightOracleReceiver` | The Chainlink CRE entry point; accepts reports only from the configured workflow owner. |
@@ -185,14 +191,17 @@ flowchart LR
 | Only verified passengers of a flight can buy on its markets | `FlightMarket.buy` → `PassRegistry.isPassenger` | `NotPassenger` |
 | A boarding pass links to one wallet | `PassRegistry.register`, `holderOf[passHash]` | `PassAlreadyUsed` |
 | An attestation works only for the wallet it was signed for, and only for 15 minutes | EIP-712 `Pass(flightId, wallet, passHash, expiry)` | `Unauthorized`, `PassExpired` |
-| A wallet can put at most 200 USDG into one market | `FlightMarket.MAX_STAKE`, `staked[wallet]` | `StakeLimitExceeded` |
+| A wallet can put at most 200 USDG on one flight, across all its markets | `PassRegistry.MAX_STAKE`, `staked[flightId][wallet]`, written only by listed markets | `StakeLimitExceeded` |
+| Payouts and refunds can only go to the holder, whoever sends them | `FlightMarket.redeemFor`, `refundFor` | — |
+| The operator opens a pool as liquidity and holds no position | `FlightMarket.seed`, once, operator only | `MarketAlreadySeeded` |
+| A flight with a final arrival time cannot be voided; an unreported one can be voided by anyone after 3 days | `FlightMarket.resolveVoid`, `VOID_GRACE` | `ResolutionFinal`, `Unauthorized` |
 | Positions stay with the wallet that bought them | `OutcomeToken._update` | `NotTransferable` |
 | Trading closes at scheduled departure | `FlightMarket.scheduledDeparture` | `MarketClosed` |
 | A flight's delay is recorded once | `FlightOracleConsumer` | `AlreadyFinalized` |
 | A new LP cannot move the price | proportional add, excess shares returned to the LP | — |
 
-The operator that lists a market seeds its opening odds and is the one address
-the passenger rule does not apply to.
+The passenger rule has no exceptions: the operator opens each pool with
+`seed`, a liquidity deposit at a chosen probability, and never trades.
 
 ---
 
@@ -205,14 +214,16 @@ per dollar, and each share pays 1 USDG if the flight is late.
 
 - **Protection pool**, one per flight: Delayed wins when the flight arrives more
   than `delayThresholdMinutes` (30) after its scheduled arrival.
-- **Arrival windows**, four per flight by default (−20 to −5, −5 to 10, 10 to 30
-  and 30 to 60 minutes against schedule): Yes wins when the gate arrival falls
-  inside the window.
+- **Arrival windows**, four per flight by default (earlier than −5, −5 to 10,
+  10 to 30, and later than 30 minutes against schedule): Yes wins when the gate
+  arrival falls inside the window. The first and last windows are open-ended, so
+  every arrival lands in exactly one window.
 - **Liquidity** is added in proportion to the pool, so a second LP never moves
   the odds. Each LP's principal is tracked, and a voided market returns it in
   full.
-- **Opening odds** come from each route's on-time history and are set by the
-  operator's first trade. After that, only passengers move the price.
+- **Opening odds** come from each route's on-time history and are set by
+  `seed`, which deposits the operator's liquidity at that probability as in
+  Gnosis's FPMM. The operator holds no trade, and only passengers move the price.
 
 ---
 
@@ -232,6 +243,19 @@ every ten minutes.
 
 The resolver waits 30 minutes after scheduled arrival before it looks, so a
 typical payout is final about half an hour after the flight reaches the gate.
+
+**Nobody claims.** Once every market for a flight has settled, the resolver
+reads each market's `Bought` events and calls `redeemFor(holder)` for every
+winner, or `refundFor(holder)` after a void. Both functions are open to anyone
+and can only pay the holder, so the operator cannot redirect a cent and anyone
+can push a payout the operator missed. `redeem` and `refund` remain for a
+holder who wants to collect first.
+
+**Results by email.** A traveller can leave an email at the kiosk. The verifier
+stores it off-chain, one file per wallet and flight, only after the boarding
+pass checks out. When the flight settles the resolver sends the result (landed
+time, each position, what was paid, the Arbiscan link) through Resend and then
+deletes the address.
 
 ---
 
@@ -264,13 +288,18 @@ already held by another wallet.
 `/kiosk` is the screen an airport would put at the gate. It never holds a
 wallet.
 
-1. The traveller scans their boarding pass. The kiosk finds the flight's open
-   market.
-2. The traveller shows the Receive QR code from their wallet app, or types the
-   address.
-3. The verifier signs the pass for that address, and the kiosk shows a QR code.
-4. The traveller scans it with their phone. `/claim` opens in the wallet's
-   browser, where they link the pass and buy, signing on their own device.
+1. The traveller chooses Protect or Trade my flight, then scans their boarding
+   pass. The kiosk finds the flight's open market.
+2. On the kiosk screen they pick the amount, and for a trade the arrival window.
+3. They show the Receive QR code from their wallet app, or type the address,
+   and can leave an email for the result.
+4. The verifier signs the pass for that address, and the kiosk shows a QR code
+   that carries their choice.
+5. They scan it with their phone. `/claim` opens in the wallet's browser with
+   the choice filled in; they link the pass and confirm, signing on their own
+   device.
+6. After landing the payout arrives in their wallet and the result arrives by
+   email. They never open the app again.
 
 The hand-off QR carries the flight id, the pass hash, the expiry and the
 signature. It carries no name and no booking reference. The kiosk clears itself
@@ -280,17 +309,17 @@ when the code expires or after three idle minutes.
 
 ## What is deployed
 
-Arbitrum Sepolia, chain **421614**. Deployed in block `315275472`.
+Arbitrum Sepolia, chain **421614**. v4, deployed in block `315593229`.
 
 | Contract | Address |
 |---|---|
-| `MarketFactory` | [`0xeD2c783B0037567c1f0ddf221cCb7649d185C4eF`](https://sepolia.arbiscan.io/address/0xeD2c783B0037567c1f0ddf221cCb7649d185C4eF) |
-| `FlightRegistry` | [`0xdEb849013D7CEcfc5749B590317965B860bF5739`](https://sepolia.arbiscan.io/address/0xdEb849013D7CEcfc5749B590317965B860bF5739) |
-| `PassRegistry` | [`0x31232BC4dB2cbB7d62295Ac799270cb2DFfAfC76`](https://sepolia.arbiscan.io/address/0x31232BC4dB2cbB7d62295Ac799270cb2DFfAfC76) |
-| `FlightOracleConsumer` | [`0xa14449d14c5812234448Dac636c86037B0564CC3`](https://sepolia.arbiscan.io/address/0xa14449d14c5812234448Dac636c86037B0564CC3) |
-| `FlightOracleReceiver` | [`0xd0f2bcF880348341Ba0f695da3358E0D46c2A50a`](https://sepolia.arbiscan.io/address/0xd0f2bcF880348341Ba0f695da3358E0D46c2A50a) |
-| `MockFeeder` | [`0x7C320F1e88BbE4c60404A0C712b6DE2CFe6fABff`](https://sepolia.arbiscan.io/address/0x7C320F1e88BbE4c60404A0C712b6DE2CFe6fABff) |
-| `MarketLens` | [`0x2d40841aA005837f3BF21D3FA9dA66301D519a64`](https://sepolia.arbiscan.io/address/0x2d40841aA005837f3BF21D3FA9dA66301D519a64) |
+| `MarketFactory` | [`0x60db695b5aF43e85541a4c14b2c1153e0e39628c`](https://sepolia.arbiscan.io/address/0x60db695b5aF43e85541a4c14b2c1153e0e39628c) |
+| `FlightRegistry` | [`0xDBff899A166482DbC7d8A008D35386a1E7c33737`](https://sepolia.arbiscan.io/address/0xDBff899A166482DbC7d8A008D35386a1E7c33737) |
+| `PassRegistry` | [`0xB22e740E4f6A62cb49404A1dF4f4CcB0CB707d81`](https://sepolia.arbiscan.io/address/0xB22e740E4f6A62cb49404A1dF4f4CcB0CB707d81) |
+| `FlightOracleConsumer` | [`0x93166cf054834e55A6df3568a8CbB46a486D37eB`](https://sepolia.arbiscan.io/address/0x93166cf054834e55A6df3568a8CbB46a486D37eB) |
+| `FlightOracleReceiver` | [`0x74E4b0F472d1fcd3B9052899cB9C14Dc0D0d91f9`](https://sepolia.arbiscan.io/address/0x74E4b0F472d1fcd3B9052899cB9C14Dc0D0d91f9) |
+| `MockFeeder` | [`0x87911883D88dF3B482A23D659538ed4C45b4A263`](https://sepolia.arbiscan.io/address/0x87911883D88dF3B482A23D659538ed4C45b4A263) |
+| `MarketLens` | [`0x8b94491963722C45DaEF93aEFb096b3b8c13c262`](https://sepolia.arbiscan.io/address/0x8b94491963722C45DaEF93aEFb096b3b8c13c262) |
 | Test USDG (6 decimals, open mint) | [`0xA50d9454E71aCf152399C872815ae6895cB53229`](https://sepolia.arbiscan.io/address/0xA50d9454E71aCf152399C872815ae6895cB53229) |
 
 The verifier signs from `0x7A5d66675fc1f54E090aEf404832788430e88e97`, an
@@ -299,7 +328,10 @@ address that holds no funds. Every flight's pools are listed by
 Contracts panel.
 
 Earlier deployments are kept on-chain and no longer used by the app: v1 had no
-passenger rule, and v2 gated only the Delayed side of protection. The first
+passenger rule, v2 gated only the Delayed side of protection, and v3 (factory
+`0xeD2c783B0037567c1f0ddf221cCb7649d185C4eF`) still needed a claim, let the
+operator seed by trading and capped stakes per market. Its last flights settle
+on 4 October. The first
 real settlement happened on v2: AirAsia AK714 on 3 October arrived 5 minutes
 late at the gate and settled On time
 ([tx](https://sepolia.arbiscan.io/tx/0x43736bfe1a69ea6c388eed67e33b94e395175def81ad14df2e072deffca836c0)).
@@ -338,10 +370,15 @@ The app reads the addresses above from `app/.env`; see
   verifier. The stake cap and one-pass-per-wallet limit the damage; checking the
   booking with the airline closes it.
 - **One resolver reports arrivals today.** The operator key that lists markets
-  also feeds the delay through `MockFeeder`. The Chainlink CRE workflow that
-  replaces it is written and typechecked, and is not yet deployed to a DON.
-- **The operator seeds opening odds without a pass.** That address is the one
-  exception to the passenger rule, and every seeding trade is public.
+  also feeds the delay through `MockFeeder`. The operator holds no position, so
+  it has nothing to gain from a false report, but the report is still trusted.
+  The Chainlink CRE workflow that replaces it is written and typechecked, and is
+  not yet deployed to a DON.
+- **Passes cannot be revoked.** A pass found to be forged after registration
+  keeps its place; revocation would come with an airline partner.
+- **Result emails depend on an off-chain service.** Addresses are kept only on
+  the operator's server until the flight settles. Payouts do not depend on
+  them.
 - **A cancellation refunds; it does not pay.** Cancelled and diverted flights
   void their markets. A separate cancellation market would cover them.
 - **The collateral is a test token.** Paxos testnet USDG has no public faucet,
@@ -355,10 +392,11 @@ The app reads the addresses above from `app/.env`; see
 ## Security review
 
 A self-review of every contract in `contracts/src`, done on 4 October 2026
-against the v3 deployment. No finding lets an outside party take funds. The
-solvency fuzz test (see [Testing](#testing)) backs the accounting: across random sequences of
-liquidity, trades, settlement and voids, every holder exits and only rounding
-dust stays behind.
+against v3. No finding let an outside party take funds, and every finding is
+fixed in v4, with a test for each fix. The solvency fuzz test (see
+[Testing](#testing)) backs the accounting: across random sequences of seeding,
+liquidity, trades, settlement and voids, every holder is paid by a pushed
+payout and only rounding dust stays behind.
 
 **What holds up**
 
@@ -371,18 +409,22 @@ dust stays behind.
 - Arrival data is write-once, positions are non-transferable, and every revert is
   a custom error.
 
-**Findings, and the fix planned before mainnet**
+**Findings on v3, and the fix in v4**
 
-| # | Severity | Finding | Planned fix |
+| # | Severity | Finding on v3 | Fixed in v4 |
 |---|---|---|---|
-| 1 | Medium | The operator seeds opening odds with a trade, exempt from the pass and the stake cap, and the same key reports arrivals through `MockFeeder`. | Set opening odds inside the first `addLiquidity` (a probability hint, as in Gnosis FPMM) and remove the operator exemption. Arrivals move to Chainlink CRE. |
-| 2 | Medium | `resolveVoid` stays callable after the oracle has finalized, so the operator could void a settled outcome. | Revert `resolveVoid` once the flight's resolution is final. |
-| 3 | Medium | A market whose arrival is never reported waits on the operator to void it. | Anyone may void a market from `scheduledArrival + 3 days` without a final resolution. |
-| 4 | Low | The 200 USDG cap applies per market, so one wallet can stake across the protection pool and every window of a flight. | Track stake per wallet per flight in one shared ledger. |
-| 5 | Low | Arrival windows cover −20 to +60 minutes; an arrival outside them resolves every window to No. | Open-ended first and last windows (a listing change only). |
-| 6 | Low | `FlightOracleReceiver` accepts any workflow while `workflowOwner` is unset. Its forwarder is the operator today. | Require a workflow owner before reports are accepted, ahead of pointing it at the Chainlink forwarder. |
-| 7 | Low | Seeding is two transactions, so a passenger could buy at 50/50 in between. | Closed by fix 1. |
-| 8 | Info | Each market keeps the factory owner at creation as its resolver; passes cannot be revoked. | Documented; revisit with an airline partner. |
+| 1 | Medium | The operator seeded opening odds with a trade, exempt from the pass and the stake cap, while the same key reports arrivals. | `seed(amount, probability)` opens the pool as liquidity, once, operator only. The exemption is gone: the operator cannot trade. |
+| 2 | Medium | `resolveVoid` stayed callable after the oracle had finalized, so the operator could void a settled outcome. | `resolveVoid` reverts with `ResolutionFinal` once the arrival time is final. |
+| 3 | Medium | A market whose arrival was never reported waited on the operator to void it. | Anyone can void from `scheduledArrival + VOID_GRACE` (3 days). |
+| 4 | Low | The 200 USDG cap applied per market, so one wallet could stake across every market of a flight. | `PassRegistry.staked[flightId][wallet]` caps the whole flight; only listed markets can write it. |
+| 5 | Low | Windows covered −20 to +60 minutes; an arrival outside resolved every window to No. | The first and last windows are open-ended. |
+| 6 | Low | `FlightOracleReceiver` accepted any workflow while `workflowOwner` was unset. | Reports are refused until a workflow owner is set. |
+| 7 | Low | Seeding took two transactions, so a passenger could buy at 50/50 in between. | `addLiquidity` reverts until the pool is seeded. |
+| 8 | Info | Each market kept the factory owner at creation as its resolver. | `resolver()` reads the factory's current owner. |
+
+Still open, and stated in [What this does not claim](#what-this-does-not-claim):
+unsigned boarding pass barcodes, a single resolver until Chainlink CRE is
+deployed, and passes that cannot be revoked.
 
 ---
 
@@ -415,7 +457,7 @@ pass barcode.
 | `ERC1155` | `OutcomeToken`, with `_update` overridden to keep positions with their buyer |
 | `EIP712`, `ECDSA` | `PassRegistry` verifies the verifier's signature over `Pass(flightId, wallet, passHash, expiry)` |
 | `SafeERC20`, `IERC20` | every collateral transfer in `FlightMarket` |
-| `ReentrancyGuard` | `buy`, `addLiquidity`, `removeLiquidity`, `resolve`, `redeem`, `refund` |
+| `ReentrancyGuard` | `buy`, `seed`, `addLiquidity`, `removeLiquidity`, `resolve`, `redeem`, `redeemFor`, `refund`, `refundFor` |
 | `Ownable` | `FlightRegistry`, `PassRegistry`, `MockFeeder` |
 | `ERC20` | the testnet USDG mock |
 
@@ -443,11 +485,13 @@ contracts/          Foundry project
   src/lens/         MarketLens
   src/interfaces/   IFlightRegistry, IFlightOracle, IPassRegistry
   src/lib/          Errors
-  test/             38 unit tests + solvency fuzz
+  test/             48 unit tests + solvency fuzz
   script/           Deploy.s.sol, export-abis.sh
 feeder/             Node services
   src/listing.ts    lists flights and seeds markets
   src/resolve.ts    settles flights from AeroDataBox (--watch to loop)
+  src/payouts.ts    pushes payouts and refunds, then emails results
+  src/subscribers.ts  kiosk emails, off-chain, deleted after use
   src/verifier.ts   boarding pass verifier, HTTP on VERIFIER_PORT
   src/bcbp.ts       IATA BCBP parser
   src/flights.json  flights to list
@@ -469,11 +513,15 @@ forge test --match-contract Solvency --fuzz-runs 5000
 
 | Suite | Tests | Covers |
 |---|---|---|
-| `FlightMarket.t.sol` | 21 | buying, liquidity in proportion, slippage, departure close, resolution, voids, refunds, redemption, ranges and thresholds |
-| `PassRegistry.t.sol` | 11 | passenger gate on every side and market, signature bound to wallet, one pass one wallet, expiry, the 200 USDG cap, non-transferable positions, operator seeding |
-| `FlightOracleReceiver.t.sol` | 3 | CRE reports accepted only from the configured workflow owner |
+| `FlightMarket.t.sol` | 28 | buying, seeding, liquidity in proportion, slippage, departure close, resolution, pushed payouts and refunds, voids after a final arrival and after the grace period, resolver following factory ownership, ranges and thresholds |
+| `PassRegistry.t.sol` | 13 | passenger gate on every side and market, the operator included, signature bound to wallet, one pass one wallet, expiry, the 200 USDG cap across a flight, only listed markets record stakes, non-transferable positions |
+| `FlightOracleReceiver.t.sol` | 4 | CRE reports refused until a workflow owner is set, then accepted only from it |
 | `MarketLens.t.sol` | 3 | flight and position views |
-| `Solvency.t.sol` | 1 fuzz | random deposits and trades, then settle or void: every holder exits and the market never owes more than it holds (5,000 runs) |
+| `Solvency.t.sol` | 1 fuzz | random seeding, deposits and trades, then settle or void: every holder is paid by `redeemFor` or `refundFor` and the market never owes more than it holds (5,000 runs) |
+
+The payout flow was also run end to end on a local chain: a passenger bought
+protection and a window, the resolver settled the flight 45 minutes late, pushed
+216.67 USDG to the passenger's wallet and wrote their result email.
 
 The app and services typecheck with `tsc --noEmit` under `strict`.
 
@@ -502,10 +550,13 @@ bash script/export-abis.sh   # regenerates app/src/lib/abi and feeder/src/abi.ts
 | `RAPIDAPI_KEY`, `RAPIDAPI_HOST` | AeroDataBox |
 | `LANDED_GRACE_MINUTES` | resolver, default 30 |
 | `PASS_REGISTRY`, `VERIFIER_PRIVATE_KEY`, `VERIFIER_PORT` | verifier |
+| `DEPLOY_BLOCK` | resolver, where the `Bought` scan for payouts starts |
+| `DATA_DIR` | verifier and resolver, where kiosk emails and payout markers live |
+| `RESEND_API_KEY`, `MAIL_FROM` | resolver; without a key, result emails are written to `DATA_DIR/outbox` |
 
 ```bash
 npm run list                  # list flights.json and seed markets
-npm run resolve -- --watch    # settle due flights every 10 minutes
+npm run resolve -- --watch    # settle due flights, push payouts, email results, every 10 minutes
 npm run verifier              # boarding pass verifier
 npm run resolve -- AK714 2026-10-03 5   # settle one flight by hand (minutes or "void")
 ```
