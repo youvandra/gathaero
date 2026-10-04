@@ -2,6 +2,7 @@
 pragma solidity 0.8.28;
 
 import { Test } from "forge-std/Test.sol";
+import { ERC1155Holder } from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 
 import { MockERC20 } from "../src/mocks/MockERC20.sol";
 import { FlightRegistry } from "../src/registry/FlightRegistry.sol";
@@ -10,9 +11,9 @@ import { MarketFactory } from "../src/market/MarketFactory.sol";
 import { FlightMarket } from "../src/market/FlightMarket.sol";
 import { Outcome } from "../src/types/FlightTypes.sol";
 
-/// Whatever sequence of deposits and trades happens, every holder can exit after settlement
-/// and the market never owes more collateral than it holds.
-contract SolvencyTest is Test {
+/// Whatever sequence of deposits and trades happens, every holder is paid after settlement,
+/// by a payout pushed on their behalf, and the market never owes more than it holds.
+contract SolvencyTest is Test, ERC1155Holder {
     uint256 internal constant UNIT = 1e6;
     uint256 internal constant ACTORS = 4;
 
@@ -50,8 +51,10 @@ contract SolvencyTest is Test {
     function testFuzz_EveryoneExits(uint256 seed, int32 delayMinutes, bool voidIt) public {
         delayMinutes = int32(bound(delayMinutes, -120, 600));
 
-        vm.prank(actors[0]);
-        market.addLiquidity(bound(seed, 1, 50_000) * UNIT);
+        uint256 opening = bound(seed, 1, 50_000) * UNIT;
+        usdg.mint(address(this), opening);
+        usdg.approve(address(market), opening);
+        market.seed(opening, bound(seed >> 64, 0.01e18, 0.99e18));
 
         for (uint256 step; step < 12; ++step) {
             uint256 roll = uint256(keccak256(abi.encode(seed, step)));
@@ -73,16 +76,23 @@ contract SolvencyTest is Test {
             market.resolve();
         }
 
+        market.removeLiquidity(market.shares(address(this)));
+        if (voidIt && market.contributions(address(this)) > 0) market.refund();
+        if (!voidIt) {
+            try market.redeem() { } catch { }
+        }
+
         for (uint256 i; i < ACTORS; ++i) {
-            vm.startPrank(actors[i]);
             uint256 lpShares = market.shares(actors[i]);
-            if (lpShares > 0) market.removeLiquidity(lpShares);
-            if (voidIt) {
-                if (market.contributions(actors[i]) > 0) market.refund();
-            } else {
-                try market.redeem() { } catch { }
+            if (lpShares > 0) {
+                vm.prank(actors[i]);
+                market.removeLiquidity(lpShares);
             }
-            vm.stopPrank();
+            if (voidIt) {
+                if (market.contributions(actors[i]) > 0) market.refundFor(actors[i]);
+            } else {
+                try market.redeemFor(actors[i]) { } catch { }
+            }
         }
 
         assertEq(market.totalShares(), 0);

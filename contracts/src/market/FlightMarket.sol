@@ -5,6 +5,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IERC1155Receiver } from "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 import { IFlightOracle } from "../interfaces/IFlightOracle.sol";
@@ -14,14 +15,17 @@ import { MarketKind, Outcome } from "../types/FlightTypes.sol";
 import {
     InsufficientLiquidity,
     InsufficientShares,
+    InvalidProbability,
     MarketAlreadyResolved,
+    MarketAlreadySeeded,
     MarketClosed,
     MarketNotResolved,
+    MarketNotSeeded,
     NotPassenger,
     NothingToRedeem,
+    ResolutionFinal,
     ResolutionNotFinal,
     SlippageExceeded,
-    StakeLimitExceeded,
     Unauthorized,
     ZeroAddress,
     ZeroAmount
@@ -31,14 +35,16 @@ contract FlightMarket is IERC1155Receiver, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     uint256 public constant WAD = 1e18;
-    /// Most a passenger can put into one market: about a ticket's worth of 6-decimal USDG.
-    /// It keeps protection sized as a hedge, so causing a delay never pays.
-    uint256 public constant MAX_STAKE = 200e6;
+    /// After this long past scheduled arrival with no final arrival time, anyone can void the
+    /// market, so funds never wait on the operator.
+    uint256 public constant VOID_GRACE = 3 days;
+    uint256 public constant MIN_SEED_PROBABILITY = 0.01e18;
 
     IERC20 public immutable collateral;
     IFlightOracle public immutable oracle;
     OutcomeToken public immutable outcome;
-    address public immutable resolver;
+    /// The factory that listed this market; its owner is the operator.
+    address public immutable factory;
     IPassRegistry public immutable passes;
 
     bytes32 public immutable flightId;
@@ -56,7 +62,6 @@ contract FlightMarket is IERC1155Receiver, ReentrancyGuard {
     mapping(address => uint256) public shares;
     mapping(address => uint256) public principal;
     mapping(address => uint256) public contributions;
-    mapping(address => uint256) public staked;
 
     bool public resolved;
     bool public voided;
@@ -74,12 +79,11 @@ contract FlightMarket is IERC1155Receiver, ReentrancyGuard {
     event Resolved(Outcome winning, int32 delayMinutes);
     event Voided();
     event Refunded(address indexed holder, uint256 amountOut);
-    event Redeemed(address indexed holder, uint256 sharesBurned, uint256 amountOut);
+    event Redeemed(address indexed holder, uint256 amountOut);
 
     constructor(
         address collateral_,
         address oracle_,
-        address resolver_,
         bytes32 flightId_,
         MarketKind kind_,
         uint16 delayThresholdMinutes_,
@@ -91,12 +95,12 @@ contract FlightMarket is IERC1155Receiver, ReentrancyGuard {
         address passes_,
         string memory uri_
     ) {
-        if (collateral_ == address(0) || oracle_ == address(0) || resolver_ == address(0)) {
+        if (collateral_ == address(0) || oracle_ == address(0)) {
             revert ZeroAddress();
         }
         collateral = IERC20(collateral_);
         oracle = IFlightOracle(oracle_);
-        resolver = resolver_;
+        factory = msg.sender;
         flightId = flightId_;
         kind = kind_;
         delayThresholdMinutes = delayThresholdMinutes_;
@@ -109,6 +113,11 @@ contract FlightMarket is IERC1155Receiver, ReentrancyGuard {
         outcome = new OutcomeToken(address(this), uri_);
     }
 
+    /// The operator that seeds odds and voids cancelled flights: whoever owns the factory now.
+    function resolver() public view returns (address) {
+        return Ownable(factory).owner();
+    }
+
     function isOpen() public view returns (bool) {
         return !resolved && !voided;
     }
@@ -117,36 +126,48 @@ contract FlightMarket is IERC1155Receiver, ReentrancyGuard {
         return isOpen() && block.timestamp < scheduledDeparture;
     }
 
+    /// The operator opens the pool at a chosen delay probability, as a liquidity deposit rather
+    /// than a trade, so it never holds a position it could profit from by reporting.
+    function seed(uint256 amount, uint256 delayedProbability)
+        external
+        nonReentrant
+        returns (uint256 sharesMinted)
+    {
+        if (msg.sender != resolver()) revert Unauthorized();
+        if (totalShares != 0) revert MarketAlreadySeeded();
+        if (
+            delayedProbability < MIN_SEED_PROBABILITY
+                || delayedProbability > WAD - MIN_SEED_PROBABILITY
+        ) revert InvalidProbability();
+        _deposit(amount);
+
+        // probability(Delayed) = reserveOnTime / (reserveOnTime + reserveDelayed)
+        uint256 onTimeWeight = delayedProbability;
+        uint256 delayedWeight = WAD - delayedProbability;
+        uint256 poolWeight = onTimeWeight > delayedWeight ? onTimeWeight : delayedWeight;
+        _returnExcess(outcome.ON_TIME(), amount, onTimeWeight, poolWeight);
+        _returnExcess(outcome.DELAYED(), amount, delayedWeight, poolWeight);
+
+        sharesMinted = amount;
+        _credit(amount, sharesMinted);
+    }
+
     function addLiquidity(uint256 amount) external nonReentrant returns (uint256 sharesMinted) {
-        if (!isOpen()) revert MarketAlreadyResolved();
-        if (block.timestamp >= scheduledDeparture) revert MarketClosed();
-        if (amount == 0) revert ZeroAmount();
+        if (totalShares == 0) revert MarketNotSeeded();
 
         uint256 onTimeId = outcome.ON_TIME();
         uint256 delayedId = outcome.DELAYED();
         uint256 reserveOnTime = outcome.balanceOf(address(this), onTimeId);
         uint256 reserveDelayed = outcome.balanceOf(address(this), delayedId);
+        _deposit(amount);
 
-        collateral.safeTransferFrom(msg.sender, address(this), amount);
-        outcome.mint(address(this), onTimeId, amount);
-        outcome.mint(address(this), delayedId, amount);
-
-        if (totalShares == 0) {
-            sharesMinted = amount;
-        } else {
-            uint256 poolWeight = reserveOnTime > reserveDelayed ? reserveOnTime : reserveDelayed;
-            sharesMinted = (amount * totalShares) / poolWeight;
-            _returnExcess(onTimeId, amount, reserveOnTime, poolWeight);
-            _returnExcess(delayedId, amount, reserveDelayed, poolWeight);
-        }
+        uint256 poolWeight = reserveOnTime > reserveDelayed ? reserveOnTime : reserveDelayed;
+        sharesMinted = (amount * totalShares) / poolWeight;
+        _returnExcess(onTimeId, amount, reserveOnTime, poolWeight);
+        _returnExcess(delayedId, amount, reserveDelayed, poolWeight);
         if (sharesMinted == 0) revert InsufficientLiquidity();
 
-        lpCollateral += amount;
-        totalShares += sharesMinted;
-        shares[msg.sender] += sharesMinted;
-        principal[msg.sender] += amount;
-
-        emit LiquidityAdded(msg.sender, amount, sharesMinted);
+        _credit(amount, sharesMinted);
     }
 
     function removeLiquidity(uint256 amount) external nonReentrant returns (uint256 amountOut) {
@@ -184,8 +205,7 @@ contract FlightMarket is IERC1155Receiver, ReentrancyGuard {
         if (collateralIn == 0) revert ZeroAmount();
         if (_requiresPass()) {
             if (!passes.isPassenger(flightId, msg.sender)) revert NotPassenger();
-            staked[msg.sender] += collateralIn;
-            if (staked[msg.sender] > MAX_STAKE) revert StakeLimitExceeded();
+            passes.recordStake(flightId, msg.sender, collateralIn);
         }
 
         uint256 wantId = _id(want);
@@ -223,37 +243,37 @@ contract FlightMarket is IERC1155Receiver, ReentrancyGuard {
         emit Resolved(winning, delayMinutes);
     }
 
+    /// Cancelled or diverted flights refund everyone. A flight with a final arrival time can no
+    /// longer be voided, and after the grace period anyone can void a flight nobody reported.
     function resolveVoid() external {
         if (!isOpen()) revert MarketAlreadyResolved();
-        if (msg.sender != resolver) revert Unauthorized();
+        (, bool finalized) = oracle.resolution(flightId);
+        if (finalized) revert ResolutionFinal();
+        if (msg.sender != resolver() && block.timestamp < uint256(scheduledArrival) + VOID_GRACE) {
+            revert Unauthorized();
+        }
 
         voided = true;
         emit Voided();
     }
 
-    function refund() external nonReentrant returns (uint256 amountOut) {
-        if (!voided) revert MarketNotResolved();
-
-        amountOut = contributions[msg.sender];
-        if (amountOut == 0) revert NothingToRedeem();
-
-        contributions[msg.sender] = 0;
-        collateral.safeTransfer(msg.sender, amountOut);
-
-        emit Refunded(msg.sender, amountOut);
+    function refund() external nonReentrant returns (uint256) {
+        return _refund(msg.sender);
     }
 
-    function redeem() external nonReentrant returns (uint256 amountOut) {
-        if (!resolved || voided) revert MarketNotResolved();
+    /// Anyone may push a refund; it can only ever go to the holder.
+    function refundFor(address holder) external nonReentrant returns (uint256) {
+        return _refund(holder);
+    }
 
-        uint256 winningId = _winningId();
-        amountOut = outcome.balanceOf(msg.sender, winningId);
-        if (amountOut == 0) revert NothingToRedeem();
+    function redeem() external nonReentrant returns (uint256) {
+        return _redeem(msg.sender);
+    }
 
-        outcome.burn(msg.sender, winningId, amountOut);
-        collateral.safeTransfer(msg.sender, amountOut);
-
-        emit Redeemed(msg.sender, amountOut, amountOut);
+    /// Anyone may push a payout; it can only ever go to the holder. The resolver pays every
+    /// winner this way right after settlement, so nobody has to come back and claim.
+    function redeemFor(address holder) external nonReentrant returns (uint256) {
+        return _redeem(holder);
     }
 
     function probability(Outcome o) public view returns (uint256) {
@@ -271,10 +291,51 @@ contract FlightMarket is IERC1155Receiver, ReentrancyGuard {
         );
     }
 
-    /// Every side of every market on a flight is for its passengers. The resolver is the
-    /// operator that lists the market and seeds its opening odds, so it trades without a pass.
+    function _deposit(uint256 amount) private {
+        if (!isOpen()) revert MarketAlreadyResolved();
+        if (block.timestamp >= scheduledDeparture) revert MarketClosed();
+        if (amount == 0) revert ZeroAmount();
+        collateral.safeTransferFrom(msg.sender, address(this), amount);
+        outcome.mint(address(this), outcome.ON_TIME(), amount);
+        outcome.mint(address(this), outcome.DELAYED(), amount);
+    }
+
+    function _credit(uint256 amount, uint256 sharesMinted) private {
+        lpCollateral += amount;
+        totalShares += sharesMinted;
+        shares[msg.sender] += sharesMinted;
+        principal[msg.sender] += amount;
+        emit LiquidityAdded(msg.sender, amount, sharesMinted);
+    }
+
+    function _refund(address holder) private returns (uint256 amountOut) {
+        if (!voided) revert MarketNotResolved();
+
+        amountOut = contributions[holder];
+        if (amountOut == 0) revert NothingToRedeem();
+
+        contributions[holder] = 0;
+        collateral.safeTransfer(holder, amountOut);
+
+        emit Refunded(holder, amountOut);
+    }
+
+    function _redeem(address holder) private returns (uint256 amountOut) {
+        if (!resolved || voided) revert MarketNotResolved();
+
+        uint256 winningId = _winningId();
+        amountOut = outcome.balanceOf(holder, winningId);
+        if (amountOut == 0) revert NothingToRedeem();
+
+        outcome.burn(holder, winningId, amountOut);
+        collateral.safeTransfer(holder, amountOut);
+
+        emit Redeemed(holder, amountOut);
+    }
+
+    /// Every side of every market on a flight is for its passengers, the operator included.
     function _requiresPass() private view returns (bool) {
-        return address(passes) != address(0) && msg.sender != resolver;
+        return address(passes) != address(0);
     }
 
     function _returnExcess(uint256 id, uint256 amount, uint256 reserve, uint256 poolWeight)

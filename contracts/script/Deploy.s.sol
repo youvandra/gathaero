@@ -39,6 +39,7 @@ contract Deploy is Script {
             address(passes),
             "ipfs://gathaero/{id}.json"
         );
+        passes.setMarkets(address(factory));
         MarketLens lens = new MarketLens(factory);
 
         vm.stopBroadcast();

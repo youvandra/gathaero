@@ -23,9 +23,10 @@ contract FlightOracleReceiverTest is Test {
     }
 
     function test_ForwarderReportReachesConsumer() public {
+        receiver.setWorkflowOwner(address(0xBEEF));
         bytes memory report = abi.encode(FLIGHT_ID, int32(150), true);
         vm.prank(forwarder);
-        receiver.onReport("", report);
+        receiver.onReport(_metadata(address(0xBEEF)), report);
 
         (int32 delayMinutes, bool finalized) = oracle.resolution(FLIGHT_ID);
         assertEq(delayMinutes, 150);
@@ -43,7 +44,14 @@ contract FlightOracleReceiverTest is Test {
         return abi.encodePacked(bytes32("workflow"), bytes10("gathaero"), owner);
     }
 
-    function test_WorkflowOwnerEnforcedWhenSet() public {
+    function test_ReportsRejectedUntilWorkflowOwnerSet() public {
+        bytes memory report = abi.encode(FLIGHT_ID, int32(150), true);
+        vm.prank(forwarder);
+        vm.expectRevert(UnknownWorkflow.selector);
+        receiver.onReport(_metadata(address(0xBEEF)), report);
+    }
+
+    function test_WorkflowOwnerEnforced() public {
         address workflowOwner = address(0xBEEF);
         receiver.setWorkflowOwner(workflowOwner);
         bytes memory report = abi.encode(FLIGHT_ID, int32(150), true);

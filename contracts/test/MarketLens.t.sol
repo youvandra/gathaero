@@ -49,8 +49,8 @@ contract MarketLensTest is Test {
         usdg.mint(address(this), 10_000 * UNIT);
         usdg.approve(address(protection), type(uint256).max);
         usdg.approve(address(range), type(uint256).max);
-        protection.addLiquidity(1_000 * UNIT);
-        range.addLiquidity(500 * UNIT);
+        protection.seed(1_000 * UNIT, 0.5e18);
+        range.seed(500 * UNIT, 0.5e18);
 
         usdg.mint(trader, 1_000 * UNIT);
         vm.startPrank(trader);

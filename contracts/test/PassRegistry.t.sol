@@ -50,6 +50,8 @@ contract PassRegistryTest is Test, ERC1155Holder {
             "ipfs://x/{id}"
         );
 
+        passes.setMarkets(address(factory));
+
         registry.registerFlight(
             flightId,
             "SQ962",
@@ -62,20 +64,22 @@ contract PassRegistryTest is Test, ERC1155Holder {
 
         usdg.mint(address(this), 1_000 * UNIT);
         usdg.approve(address(protection), type(uint256).max);
-        protection.addLiquidity(1_000 * UNIT);
+        protection.seed(1_000 * UNIT, 0.2e18);
 
         uint64 arrival = uint64(block.timestamp + 6 hours);
         range =
             FlightMarket(factory.createRange(flightId, arrival - 10 minutes, arrival + 10 minutes));
         usdg.mint(address(this), 1_000 * UNIT);
         usdg.approve(address(range), type(uint256).max);
-        range.addLiquidity(1_000 * UNIT);
+        range.seed(1_000 * UNIT, 0.6e18);
 
         for (uint256 i; i < 2; ++i) {
             address wallet = i == 0 ? passenger : other;
             usdg.mint(wallet, 100 * UNIT);
             vm.prank(wallet);
             usdg.approve(address(protection), type(uint256).max);
+            vm.prank(wallet);
+            usdg.approve(address(range), type(uint256).max);
         }
     }
 
@@ -149,10 +153,21 @@ contract PassRegistryTest is Test, ERC1155Holder {
         assertGt(range.outcome().balanceOf(passenger, 1), 0);
     }
 
-    function test_ResolverSeedsOddsWithoutPass() public {
+    function test_SeedSetsOpeningOddsWithoutATrade() public view {
+        assertApproxEqAbs(protection.probability(Outcome.Delayed), 0.2e18, 1e12);
+        assertApproxEqAbs(range.probability(Outcome.Delayed), 0.6e18, 1e12);
+        assertEq(protection.volume(), 0);
+    }
+
+    function test_OperatorCannotTradeWithoutPass() public {
         usdg.mint(address(this), 10 * UNIT);
+        vm.expectRevert(NotPassenger.selector);
         protection.buy(Outcome.OnTime, 10 * UNIT, 0);
-        assertGt(protection.outcome().balanceOf(address(this), 0), 0);
+    }
+
+    function test_OnlyListedMarketsRecordStake() public {
+        vm.expectRevert(Unauthorized.selector);
+        passes.recordStake(flightId, passenger, 1);
     }
 
     function test_SignatureIsBoundToWallet() public {
@@ -194,16 +209,19 @@ contract PassRegistryTest is Test, ERC1155Holder {
         passes.register(flightId, passHash, expiry, signature);
     }
 
-    function test_StakeIsCappedPerPassenger() public {
+    function test_StakeIsCappedAcrossTheFlight() public {
         _verify(passenger);
         usdg.mint(passenger, 200 * UNIT);
 
         vm.startPrank(passenger);
         protection.buy(Outcome.Delayed, 150 * UNIT, 0);
-        protection.buy(Outcome.OnTime, 50 * UNIT, 0);
+        range.buy(Outcome.OnTime, 50 * UNIT, 0);
+        vm.expectRevert(StakeLimitExceeded.selector);
+        range.buy(Outcome.Delayed, 1, 0);
         vm.expectRevert(StakeLimitExceeded.selector);
         protection.buy(Outcome.Delayed, 1, 0);
         vm.stopPrank();
+        assertEq(passes.staked(flightId, passenger), 200 * UNIT);
     }
 
     function test_PositionsCannotBeTransferred() public {

@@ -23,3 +23,7 @@ error PassExpired();
 error NotPassenger();
 error StakeLimitExceeded();
 error NotTransferable();
+error ResolutionFinal();
+error MarketAlreadySeeded();
+error MarketNotSeeded();
+error InvalidProbability();

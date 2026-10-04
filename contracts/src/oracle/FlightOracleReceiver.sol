@@ -41,7 +41,7 @@ contract FlightOracleReceiver is IReceiver, Ownable {
 
     function onReport(bytes calldata metadata, bytes calldata report) external {
         if (msg.sender != forwarder) revert Unauthorized();
-        if (workflowOwner != address(0) && _workflowOwnerOf(metadata) != workflowOwner) {
+        if (workflowOwner == address(0) || _workflowOwnerOf(metadata) != workflowOwner) {
             revert UnknownWorkflow();
         }
         (bytes32 flightId, int32 delayMinutes, bool finalized) =

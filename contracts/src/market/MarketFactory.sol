@@ -20,6 +20,7 @@ contract MarketFactory is Ownable {
     mapping(bytes32 => mapping(uint64 => address)) private _threshold;
     mapping(bytes32 => address) private _ranges;
     mapping(bytes32 => address[]) private _rangeList;
+    mapping(address => bool) public isMarket;
 
     event MarketCreated(bytes32 indexed flightId, address market, MarketKind kind, uint64 param);
     event BaseUriUpdated(string baseUri);
@@ -58,7 +59,6 @@ contract MarketFactory is Ownable {
             new FlightMarket(
                 collateral,
                 address(oracle),
-                owner(),
                 flightId,
                 MarketKind.Protection,
                 flight.delayThresholdMinutes,
@@ -72,6 +72,7 @@ contract MarketFactory is Ownable {
             )
         );
         _protection[flightId] = market;
+        isMarket[market] = true;
 
         emit MarketCreated(flightId, market, MarketKind.Protection, flight.delayThresholdMinutes);
     }
@@ -88,7 +89,6 @@ contract MarketFactory is Ownable {
             new FlightMarket(
                 collateral,
                 address(oracle),
-                owner(),
                 flightId,
                 MarketKind.Threshold,
                 flight.delayThresholdMinutes,
@@ -102,6 +102,7 @@ contract MarketFactory is Ownable {
             )
         );
         _threshold[flightId][strikeArrival] = market;
+        isMarket[market] = true;
 
         emit MarketCreated(flightId, market, MarketKind.Threshold, strikeArrival);
     }
@@ -120,7 +121,6 @@ contract MarketFactory is Ownable {
             new FlightMarket(
                 collateral,
                 address(oracle),
-                owner(),
                 flightId,
                 MarketKind.Range,
                 flight.delayThresholdMinutes,
@@ -134,6 +134,7 @@ contract MarketFactory is Ownable {
             )
         );
         _ranges[key] = market;
+        isMarket[market] = true;
         _rangeList[flightId].push(market);
 
         emit MarketCreated(flightId, market, MarketKind.Range, upper);
