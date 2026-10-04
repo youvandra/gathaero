@@ -35,3 +35,6 @@ yarn-debug.log*
 
 # Pitch material stays local
 docs/pitch/
+
+# Remotion video project stays local
+video/
