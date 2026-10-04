@@ -104,7 +104,8 @@ function Claim() {
           {bought.window
             ? `If ${flight.code} lands in that window, you receive `
             : `If ${flight.code} lands ${flight.thresholdMinutes}+ minutes late, you receive `}
-          <strong>{formatUsdc(bought.payout)} USDG</strong>, paid automatically after landing.
+          <strong>{formatUsdc(bought.payout)} USDG</strong>, sent to your wallet automatically after
+          landing. Nothing to claim.
         </p>
         <Button variant="secondary" size="lg" onClick={() => navigate("/app/positions")}>
           View my positions

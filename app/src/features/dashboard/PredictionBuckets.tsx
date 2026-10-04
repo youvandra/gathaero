@@ -40,7 +40,7 @@ function BucketRow({
       notify({
         tone: "positive",
         title: outcome === ON_TIME ? "Prediction placed · Yes" : "Prediction placed · No",
-        children: `${amount} USDG · lands ${bucket.from}–${bucket.to}`,
+        children: `${amount} USDG · lands ${bucket.window}`,
       });
     } catch (error) {
       notify(errorToast(error));
@@ -61,7 +61,7 @@ function BucketRow({
           fontVariantNumeric: "tabular-nums",
         }}
       >
-        {bucket.from} – {bucket.to}
+        {bucket.window}
       </span>
       {closed && !settled ? (
         <span className="col-span-2 flex justify-end">
@@ -85,7 +85,7 @@ function BucketRow({
             title={
               pending
                 ? STAGE_LABEL[stage]
-                : `Pays 1 USDG per share if the flight arrives ${bucket.from}–${bucket.to}`
+                : `Pays 1 USDG per share if the flight arrives ${bucket.window}`
             }
             onClick={() => {
               void trade(ON_TIME);

@@ -15,11 +15,6 @@ export const flightMarketAbi = [
         "internalType": "address"
       },
       {
-        "name": "resolver_",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
         "name": "flightId_",
         "type": "bytes32",
         "internalType": "bytes32"
@@ -74,7 +69,20 @@ export const flightMarketAbi = [
   },
   {
     "type": "function",
-    "name": "MAX_STAKE",
+    "name": "MIN_SEED_PROBABILITY",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "VOID_GRACE",
     "inputs": [],
     "outputs": [
       {
@@ -187,6 +195,19 @@ export const flightMarketAbi = [
         "name": "",
         "type": "uint16",
         "internalType": "uint16"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "factory",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "stateMutability": "view"
@@ -430,7 +451,26 @@ export const flightMarketAbi = [
     "inputs": [],
     "outputs": [
       {
-        "name": "amountOut",
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "redeemFor",
+    "inputs": [
+      {
+        "name": "holder",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -443,7 +483,26 @@ export const flightMarketAbi = [
     "inputs": [],
     "outputs": [
       {
-        "name": "amountOut",
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "refundFor",
+    "inputs": [
+      {
+        "name": "holder",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -555,26 +614,31 @@ export const flightMarketAbi = [
   },
   {
     "type": "function",
-    "name": "shares",
+    "name": "seed",
     "inputs": [
       {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
       {
-        "name": "",
+        "name": "delayedProbability",
         "type": "uint256",
         "internalType": "uint256"
       }
     ],
-    "stateMutability": "view"
+    "outputs": [
+      {
+        "name": "sharesMinted",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
-    "name": "staked",
+    "name": "shares",
     "inputs": [
       {
         "name": "",
@@ -786,12 +850,6 @@ export const flightMarketAbi = [
         "internalType": "address"
       },
       {
-        "name": "sharesBurned",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
         "name": "amountOut",
         "type": "uint256",
         "indexed": false,
@@ -856,7 +914,17 @@ export const flightMarketAbi = [
   },
   {
     "type": "error",
+    "name": "InvalidProbability",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "MarketAlreadyResolved",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "MarketAlreadySeeded",
     "inputs": []
   },
   {
@@ -867,6 +935,11 @@ export const flightMarketAbi = [
   {
     "type": "error",
     "name": "MarketNotResolved",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "MarketNotSeeded",
     "inputs": []
   },
   {
@@ -882,6 +955,11 @@ export const flightMarketAbi = [
   {
     "type": "error",
     "name": "ReentrancyGuardReentrantCall",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "ResolutionFinal",
     "inputs": []
   },
   {
@@ -903,11 +981,6 @@ export const flightMarketAbi = [
   {
     "type": "error",
     "name": "SlippageExceeded",
-    "inputs": []
-  },
-  {
-    "type": "error",
-    "name": "StakeLimitExceeded",
     "inputs": []
   },
   {
@@ -1070,6 +1143,25 @@ export const marketFactoryAbi = [
         "name": "flightId",
         "type": "bytes32",
         "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "isMarket",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "outputs": [
@@ -1995,6 +2087,19 @@ export const passRegistryAbi = [
   },
   {
     "type": "function",
+    "name": "MAX_STAKE",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "PASS_TYPEHASH",
     "inputs": [],
     "outputs": [
@@ -2094,6 +2199,19 @@ export const passRegistryAbi = [
   },
   {
     "type": "function",
+    "name": "markets",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "contract IMarketDirectory"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "owner",
     "inputs": [],
     "outputs": [
@@ -2104,6 +2222,29 @@ export const passRegistryAbi = [
       }
     ],
     "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "recordStake",
+    "inputs": [
+      {
+        "name": "flightId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "wallet",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
@@ -2142,6 +2283,19 @@ export const passRegistryAbi = [
   },
   {
     "type": "function",
+    "name": "setMarkets",
+    "inputs": [
+      {
+        "name": "markets_",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "setVerifier",
     "inputs": [
       {
@@ -2152,6 +2306,30 @@ export const passRegistryAbi = [
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "staked",
+    "inputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -2183,6 +2361,19 @@ export const passRegistryAbi = [
     "type": "event",
     "name": "EIP712DomainChanged",
     "inputs": [],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "MarketsUpdated",
+    "inputs": [
+      {
+        "name": "markets",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
     "anonymous": false
   },
   {
@@ -2304,6 +2495,11 @@ export const passRegistryAbi = [
   {
     "type": "error",
     "name": "PassExpired",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "StakeLimitExceeded",
     "inputs": []
   },
   {

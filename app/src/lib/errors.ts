@@ -36,9 +36,18 @@ const REVERTS: Record<string, Explained> = {
     title: "Trading is closed",
     message: "This flight has departed, so trading is closed. It settles after landing.",
   },
+  MarketNotSeeded: {
+    title: "Not open yet",
+    message: "This market is still being opened. Try again in a minute.",
+  },
+  ResolutionFinal: {
+    title: "Already settled",
+    message: "This flight has a final arrival time, so it can no longer be cancelled.",
+  },
   StakeLimitExceeded: {
     title: "Limit reached",
-    message: "Each wallet can put up to 200 USDG into one market. Try a smaller amount.",
+    message:
+      "Each wallet can put up to 200 USDG on one flight, across all its markets. Try a smaller amount.",
   },
   MarketAlreadyResolved: {
     title: "Market already settled",

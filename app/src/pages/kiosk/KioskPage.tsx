@@ -17,7 +17,7 @@ import {
   muted,
   type Choice,
 } from "../../features/kiosk/parts";
-import { requestAttestation } from "../../features/market/useBoardingPass";
+import { requestAttestation, requestResultEmail } from "../../features/market/useBoardingPass";
 import { useFlights } from "../../features/market/useFlights";
 import { passRegistryAbi } from "../../lib/abi";
 import { explainError } from "../../lib/errors";
@@ -27,6 +27,7 @@ import { usePageTitle } from "../../lib/hooks/usePageTitle";
 
 /** A public kiosk never holds a wallet: it checks the pass, then hands off to the traveller's phone. */
 const IDLE_RESET_SECONDS = 180;
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 type Pass = { text: string; flightId: Hex; passenger: string; seat: string };
 
@@ -89,11 +90,13 @@ function Kiosk() {
   const [step, setStep] = useState<Step>({ kind: "choose" });
   const [mode, setMode] = useState<Mode>("protect");
   const [typed, setTyped] = useState("");
+  const [email, setEmail] = useState("");
   const [startedAt, setStartedAt] = useState(() => Math.floor(Date.now() / 1000));
 
   const reset = useCallback(() => {
     setStep({ kind: "choose" });
     setTyped("");
+    setEmail("");
     setStartedAt(Math.floor(Date.now() / 1000));
   }, []);
 
@@ -151,8 +154,17 @@ function Kiosk() {
           args: [pass.flightId, wallet],
         });
         let expiresAt = Math.floor(Date.now() / 1000) + IDLE_RESET_SECONDS;
+        const resultEmail = EMAIL.test(email.trim()) ? email.trim() : undefined;
+        if (verified && resultEmail) {
+          await requestResultEmail(pass.flightId, wallet, pass.text, resultEmail);
+        }
         if (!verified) {
-          const attestation = await requestAttestation(pass.flightId, wallet, pass.text);
+          const attestation = await requestAttestation(
+            pass.flightId,
+            wallet,
+            pass.text,
+            resultEmail,
+          );
           claim.searchParams.set("h", attestation.passHash);
           claim.searchParams.set("e", attestation.expiry);
           claim.searchParams.set("s", attestation.signature);
@@ -171,7 +183,7 @@ function Kiosk() {
         problem(explained.title, explained.message);
       }
     },
-    [mode, publicClient],
+    [email, mode, publicClient],
   );
 
   const unreadable = (what: string) => () =>
@@ -294,6 +306,21 @@ function Kiosk() {
           />
         </div>
         <div className="flex w-full max-w-sm flex-col gap-2 text-left">
+          <label htmlFor="kiosk-email" className="text-sm font-medium">
+            Email for your result (optional)
+          </label>
+          <TextField
+            id="kiosk-email"
+            type="email"
+            placeholder="you@example.com"
+            value={email}
+            invalid={email.trim() !== "" && !EMAIL.test(email.trim())}
+            onChange={(event) => setEmail(event.target.value)}
+          />
+          <p className="m-0 text-sm" style={muted}>
+            We email you when your flight settles, then delete the address. Payouts go straight to
+            your wallet.
+          </p>
           <TextField
             id="kiosk-wallet"
             placeholder="Or type your address, 0x…"

@@ -22,6 +22,8 @@ export type MarketSnapshot = {
 export type Bucket = MarketSnapshot & {
   from: string;
   to: string;
+  /** "11:20–11:35", or "before 11:20" / "after 11:55" for the open-ended edge windows. */
+  window: string;
   yes: number;
   hit: boolean;
 };
@@ -86,6 +88,9 @@ const dateFormat = new Intl.DateTimeFormat("en-GB", {
   timeZone: "UTC",
 });
 
+/** Edge windows reach a day past schedule; anything this far out is drawn as open-ended. */
+const OPEN_END_SECONDS = 6n * 3600n;
+
 export const utcTime = (seconds: bigint | number): string =>
   timeFormat.format(new Date(Number(seconds) * 1000));
 
@@ -123,10 +128,15 @@ export function toFlightMarket(flight: RawFlight): FlightMarket {
 
   const buckets: Bucket[] = flight.ranges.map((range) => {
     const snapshot = snapshotOf(range);
+    const from = utcTime(range.lowerBound);
+    const to = utcTime(range.upperBound);
+    const opensEarly = flight.scheduledArrival - range.lowerBound > OPEN_END_SECONDS;
+    const opensLate = range.upperBound - flight.scheduledArrival > OPEN_END_SECONDS;
     return {
       ...snapshot,
-      from: utcTime(range.lowerBound),
-      to: utcTime(range.upperBound),
+      from,
+      to,
+      window: opensEarly ? `before ${to}` : opensLate ? `after ${from}` : `${from}–${to}`,
       yes: 1 - snapshot.delayedProbability,
       hit: snapshot.resolved && !snapshot.delayedWon,
     };
@@ -176,10 +186,7 @@ export function actualArrival(market: FlightMarket): string | null {
 }
 
 /** The flight a market contract belongs to, from either its protection pool or a window. */
-export function flightOfMarket(
-  flights: FlightMarket[],
-  market: string,
-): FlightMarket | undefined {
+export function flightOfMarket(flights: FlightMarket[], market: string): FlightMarket | undefined {
   const target = market.toLowerCase();
   return flights.find(
     (flight) =>

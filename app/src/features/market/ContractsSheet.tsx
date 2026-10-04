@@ -44,7 +44,7 @@ export function ContractsSheet({
             <DetailHeading>Arrival windows (UTC)</DetailHeading>
             <DetailList
               rows={market.buckets.map((bucket) => ({
-                label: `${bucket.from}–${bucket.to}`,
+                label: bucket.window,
                 value: <HexValue value={bucket.address} />,
               }))}
             />

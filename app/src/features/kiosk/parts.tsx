@@ -107,7 +107,7 @@ function usePredictChoice(flight: FlightMarket, initial?: Choice) {
   const bucket = open[Math.min(picked, open.length - 1)];
   const parsed = parseAmount(amount);
   const payout = bucket ? quoteShares(bucket, ON_TIME, parsed) : 0n;
-  const label = bucket ? `${bucket.from}–${bucket.to} UTC` : "";
+  const label = bucket ? `${bucket.window} UTC` : "";
   return { open, picked, setPicked, bucket, amount, setAmount, parsed, payout, label };
 }
 
@@ -146,7 +146,7 @@ function WindowPicker({ choice }: { choice: ReturnType<typeof usePredictChoice> 
           variant={index === choice.picked ? "primary" : "secondary"}
           onClick={() => choice.setPicked(index)}
         >
-          {option.from}–{option.to} · {(option.yes * 100).toFixed(0)}¢
+          {option.window} · {(option.yes * 100).toFixed(0)}¢
         </Button>
       ))}
     </div>

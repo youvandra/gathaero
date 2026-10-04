@@ -36,7 +36,8 @@ import { requestAttestation, usePassenger } from "../../features/market/useBoard
 import { pickFlight, useFlights } from "../../features/market/useFlights";
 import { useCollateralBalance } from "../../features/market/useBalance";
 import { STAGE_LABEL, useTransact } from "../../features/market/useTransact";
-import { flightMarketAbi } from "../../lib/abi";
+import { env } from "../../config/env";
+import { passRegistryAbi } from "../../lib/abi";
 import { formatCountdown, formatUsdc, parseAmount, usd, withSlippage } from "../../lib/format";
 import { useNow } from "../../lib/hooks/useNow";
 import { usePageTitle } from "../../lib/hooks/usePageTitle";
@@ -207,18 +208,18 @@ function MarketDetail({ market }: { market: FlightMarket }) {
   const payout = protection ? quoteShares(protection, DELAYED, parsedAmount) : 0n;
 
   const { data: staked = 0n } = useReadContract({
-    address: protection?.address,
-    abi: flightMarketAbi,
+    address: env.contracts.passRegistry,
+    abi: passRegistryAbi,
     functionName: "staked",
-    args: address ? [address] : undefined,
-    query: { enabled: Boolean(protection && address && buyOpen) },
+    args: address ? [market.id, address] : undefined,
+    query: { enabled: Boolean(address && buyOpen) },
   });
   const room = MAX_STAKE > staked ? MAX_STAKE - staked : 0n;
   const amountIssue =
     parsedAmount <= 0n
       ? "Enter an amount."
       : parsedAmount > room
-        ? `You can add up to ${formatUsdc(room)} USDG more on this flight (200 USDG per market).`
+        ? `You can add up to ${formatUsdc(room)} USDG more on this flight (200 USDG per flight, across every market).`
         : balance !== undefined && parsedAmount > balance
           ? "Not enough USDG. Tap your balance at the top to get test USDG."
           : null;
@@ -524,7 +525,7 @@ function MarketDetail({ market }: { market: FlightMarket }) {
             </div>
             <BarChart
               data={market.buckets.map((bucket) => ({
-                label: `${bucket.from}–${bucket.to}`,
+                label: bucket.window,
                 value: bucket.yes * 100,
                 glaze: "violet" as const,
               }))}
