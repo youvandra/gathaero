@@ -22,6 +22,7 @@ nothing to claim.
 |---|---|
 | **The app** | <https://gathaero.space> |
 | **Kiosk mode, as a gate screen would show it** | <https://gathaero.space/kiosk> |
+| **A demo boarding pass, for testers without a flight** | <https://gathaero.space/demo-pass> |
 | **The market factory, on Arbiscan** | [`0x60db…628c`](https://sepolia.arbiscan.io/address/0x60db695b5aF43e85541a4c14b2c1153e0e39628c) |
 | **A real flight, settled from real data** | [AK714 SIN→KUL, 3 Oct, 5 min late, settled On time](https://sepolia.arbiscan.io/tx/0x43736bfe1a69ea6c388eed67e33b94e395175def81ad14df2e072deffca836c0) |
 
@@ -345,10 +346,15 @@ late at the gate and settled On time
 1. Open <https://gathaero.space> and connect a wallet on Arbitrum Sepolia. You
    need a little Sepolia ETH for gas.
 2. Tap your USDG balance in the top bar to mint test USDG.
-3. Open a flight that is still open (buying closes at departure), scan its
-   boarding pass, and confirm the transaction that links it to your wallet.
-4. Buy protection. Your position, its contract and the flight's actual arrival
-   appear under **Positions** and in each row's side panel.
+3. Open a flight that is still open (buying closes at departure) and tap
+   **Verify boarding pass**. No boarding pass? Tap **Use a demo pass**: on
+   testnet it generates a real-format pass for that flight with a random name.
+   Confirm the transaction that links it to your wallet.
+4. Buy protection or an arrival window. Your position, its contract and the
+   flight's actual arrival appear under **Positions**; after landing the payout
+   arrives in your wallet and shows there as paid.
+5. To try the kiosk, open <https://gathaero.space/demo-pass> on one screen and
+   <https://gathaero.space/kiosk> on another, and scan the demo pass.
 
 ### Run it locally
 
@@ -368,7 +374,9 @@ The app reads the addresses above from `app/.env`; see
 - **A boarding pass barcode is not signed by the airline.** Anyone can generate
   a well-formed barcode for a real flight, so a determined forger can pass the
   verifier. The stake cap and one-pass-per-wallet limit the damage; checking the
-  booking with the airline closes it.
+  booking with the airline closes it. On testnet the app makes this explicit
+  with a demo pass generator, so anyone can try the flow; mainnet would remove
+  it and check bookings instead.
 - **One resolver reports arrivals today.** The operator key that lists markets
   also feeds the delay through `MockFeeder`. The operator holds no position, so
   it has nothing to gain from a false report, but the report is still trusted.
@@ -458,7 +466,7 @@ pass barcode.
 | `EIP712`, `ECDSA` | `PassRegistry` verifies the verifier's signature over `Pass(flightId, wallet, passHash, expiry)` |
 | `SafeERC20`, `IERC20` | every collateral transfer in `FlightMarket` |
 | `ReentrancyGuard` | `buy`, `seed`, `addLiquidity`, `removeLiquidity`, `resolve`, `redeem`, `redeemFor`, `refund`, `refundFor` |
-| `Ownable` | `FlightRegistry`, `PassRegistry`, `MockFeeder` |
+| `Ownable` | `FlightRegistry`, `PassRegistry`, `MarketFactory` (whose owner is every market's resolver), `FlightOracleConsumer`, `FlightOracleReceiver`, `MockFeeder` |
 | `ERC20` | the testnet USDG mock |
 
 | Paxos USDG | Where |
@@ -497,9 +505,9 @@ feeder/             Node services
   src/flights.json  flights to list
 cre/                Chainlink CRE workflow
 app/                web app (Vite, React, PWA)
-  src/pages/        landing, app, kiosk, claim
+  src/pages/        landing, app, kiosk, claim, demo pass
   src/features/     market, boarding, positions, vault, kiosk, wallet
-docs/               status, runbook, README banner
+docs/               status, day-one spec, README banner
 ```
 
 ---
