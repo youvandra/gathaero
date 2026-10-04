@@ -210,7 +210,7 @@ export function VaultPage() {
               onRowClick={setDetail}
               density="default"
               stickyHeader={false}
-              empty="No open pools right now. New flights are listed every day."
+              empty="No open pools right now. New flights are listed ahead of departure."
             />
             <TablePager paged={paged} onPageChange={paged.setPage} noun="pools" />
           </>

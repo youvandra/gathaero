@@ -9,14 +9,8 @@ import { env } from "../../config/env";
 import { checkPassForMarket, parseBoardingPass } from "../../features/boarding/bcbp";
 import { BoardingPassScanner } from "../../features/boarding/BoardingPassScanner";
 import { ModeCard, PredictArt, ProtectArt } from "../../features/kiosk/ModeCard";
-import {
-  Big,
-  ChoicePanel,
-  FlightCard,
-  Screen,
-  muted,
-  type Choice,
-} from "../../features/kiosk/parts";
+import { Big, ChoicePanel, FlightCard, Screen, muted } from "../../features/kiosk/parts";
+import { type Choice } from "../../features/kiosk/choice";
 import { requestAttestation, requestResultEmail } from "../../features/market/useBoardingPass";
 import { useFlights } from "../../features/market/useFlights";
 import { passRegistryAbi } from "../../lib/abi";

@@ -13,7 +13,8 @@ export default defineConfig({
       manifest: {
         name: "Gathæro",
         short_name: "Gathæro",
-        description: "Predict and protect against flight delays, settled instantly on-chain.",
+        description:
+          "Trade your own flight: passengers protect against delays or predict the arrival, settled on Arbitrum from the real gate arrival.",
         theme_color: "#8c1320",
         background_color: "#020617",
         display: "standalone",

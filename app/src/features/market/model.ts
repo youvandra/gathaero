@@ -176,7 +176,7 @@ export function quoteShares(market: MarketSnapshot, outcome: number, amount: big
   return amount + (want * amount) / (unwanted + amount);
 }
 
-/** Most one wallet can put into one market, in 6-decimal USDG. Mirrors FlightMarket.MAX_STAKE. */
+/** Most one wallet can stake on one flight, across all its markets. Mirrors PassRegistry.MAX_STAKE. */
 export const MAX_STAKE = 200_000_000n;
 
 /** Gate arrival reported by the oracle, as "HH:MM", once the flight has settled. */

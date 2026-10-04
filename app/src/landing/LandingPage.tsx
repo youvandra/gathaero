@@ -162,7 +162,7 @@ export function LandingPage() {
           <div className="flex flex-col gap-6 px-5 pb-8 sm:gap-8 sm:px-8 sm:pb-12 lg:flex-row lg:items-end lg:justify-between lg:px-12 lg:pb-16">
             <div className="max-w-xl">
               <h1 className="text-3xl font-semibold leading-[1.1] tracking-tight text-[#010101] sm:text-4xl lg:text-[3.5rem] lg:text-white">
-                Hedge the sky. Trade every flight.
+                Hedge the delay. Trade your own flight.
               </h1>
 
               <form

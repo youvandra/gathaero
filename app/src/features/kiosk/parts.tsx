@@ -1,10 +1,10 @@
 import { Button } from "cordon-ui";
 import { useState, type ReactNode } from "react";
-import type { Address } from "viem";
 
 import { DELAYED, ON_TIME, quoteShares, type FlightMarket } from "../market/model";
 import { STAGE_LABEL, useTransact } from "../market/useTransact";
 import { explainError } from "../../lib/errors";
+import { AMOUNTS, type Choice } from "./choice";
 import { formatCountdown, formatUsdc, parseAmount, withSlippage } from "../../lib/format";
 
 export const muted = { color: "var(--cordon-copy)" } as const;
@@ -80,11 +80,6 @@ export function FlightCard({ flight, now }: { flight: FlightMarket; now: number 
     </div>
   );
 }
-
-export const AMOUNTS = ["10", "25", "50", "100"];
-
-/** What the traveller picked on the kiosk, carried to their phone in the hand-off link. */
-export type Choice = { amount: string; bucket?: Address };
 
 function openBuckets(flight: FlightMarket) {
   return flight.buckets.filter((bucket) => !bucket.resolved && !bucket.voided);

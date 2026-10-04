@@ -86,7 +86,7 @@ export function ProtectArt() {
     >
       <div className="flex flex-1 flex-col gap-1 p-4">
         <span style={{ fontSize: 11, letterSpacing: "0.12em", color: copy }}>
-          AK714 · SIN → KUL
+          GX123 · SIN → KUL
         </span>
         <span style={{ fontSize: 26, fontWeight: 700, color: ink }}>09:15</span>
         <span style={{ fontSize: 15, fontWeight: 600, color: accent }}>Landed +34 min</span>

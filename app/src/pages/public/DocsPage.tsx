@@ -3,19 +3,27 @@ import { MarketingShell } from "../../components/marketing/MarketingShell";
 const SECTIONS = [
   {
     title: "Contracts",
-    body: "FlightMarket holds the AMM and outcome shares. MarketFactory deploys one market per flight. LiquidityVault backs markets per route.",
+    body: "MarketFactory deploys a protection pool and four arrival-window pools per flight. Each FlightMarket is a fixed-product market maker with non-transferable ERC-1155 outcome shares.",
+  },
+  {
+    title: "Passengers",
+    body: "PassRegistry links a verified boarding pass to one wallet with an EIP-712 signature, and caps each passenger at 200 USDG per flight.",
   },
   {
     title: "Oracle",
-    body: "FlightOracleConsumer stores finalized flight resolutions. FlightOracleReceiver accepts signed reports from Chainlink CRE, which reads AeroDataBox.",
+    body: "FlightOracleConsumer stores each flight's arrival once. Today the resolver posts it through MockFeeder from AeroDataBox; a Chainlink CRE workflow for FlightOracleReceiver is written and not yet deployed.",
   },
   {
     title: "Settlement",
-    body: "Winning shares redeem 1:1 for the collateral token. Delay is the arrival time minus the scheduled arrival time.",
+    body: "Delay is the gate arrival minus the scheduled arrival. Winning shares pay 1 USDG each, pushed to the holder's wallet by redeemFor; cancelled flights refund everyone.",
   },
   {
     title: "Network",
-    body: "Deployed on Arbitrum. Sepolia chain id 421614, One chain id 42161.",
+    body: "Live on Arbitrum Sepolia (chain id 421614). Mainnet target: Arbitrum One (42161) with Paxos USDG.",
+  },
+  {
+    title: "Source",
+    body: "Contracts, services and app are open source at github.com/youvandra/gathaero, with every deployed address in the README.",
   },
 ];
 
